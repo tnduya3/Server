@@ -12,14 +12,14 @@ namespace Server_1_.Models
         public int UserId { get; set; }
 
         // Adding the 'required' modifier to ensure the property is initialized  
-        public required Users User { get; set; }
+        public Users User { get; set; }
 
-        [ForeignKey("Chatroom")]
+        [ForeignKey("ChatRooms")]
         public int ChatroomId { get; set; }
-        public required ChatRooms Chatroom { get; set; }
+        public ChatRooms Chatroom { get; set; }
 
         public DateTime JoinedAt { get; set; }
         public DateTime? LeftAt { get; set; }
-        public required string Role { get; set; }
+        public string Role { get; set; } 
     }
 }

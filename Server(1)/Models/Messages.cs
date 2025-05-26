@@ -9,11 +9,11 @@ namespace Server_1_.Models
         public int MessageId { get; set; }
 
 
-        [ForeignKey("User")]
+        [ForeignKey("Users")]
         public int UserId { get; set; }
         public int SenderId { get; set; }
-
-        [ForeignKey("ChatRoom")]
+        
+        [ForeignKey("ChatRooms")]
         public int ChatRoomId { get; set; }
 
         public string? Message { get; set; }

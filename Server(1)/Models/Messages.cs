@@ -8,7 +8,6 @@ namespace Server_1_.Models
         [Key]
         public int MessageId { get; set; }
 
-
         [ForeignKey("Users")]
         public int UserId { get; set; }
         public int SenderId { get; set; }

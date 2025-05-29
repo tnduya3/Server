@@ -20,6 +20,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IChatroomService, ChatroomService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<IFirebaseNotificationService, FirebaseNotificationService>();
+//builder.Services.AddSingleton<IWebHostEnvironment>();
 
 builder.Services.AddSignalR();
 

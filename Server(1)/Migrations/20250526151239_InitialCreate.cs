@@ -4,6 +4,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace Server_1_.Migrations
 {
     /// <inheritdoc />
@@ -46,6 +48,32 @@ namespace Server_1_.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Friends",
+                columns: table => new
+                {
+                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    FriendId = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Friends", x => new { x.UserId, x.FriendId });
+                    table.ForeignKey(
+                        name: "FK_Friends_Users_FriendId",
+                        column: x => x.FriendId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Friends_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Messages",
                 columns: table => new
                 {
@@ -57,35 +85,20 @@ namespace Server_1_.Migrations
                     Message = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    ChatRoomsChatRoomId = table.Column<int>(type: "integer", nullable: true)
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Messages", x => x.MessageId);
                     table.ForeignKey(
-                        name: "FK_Messages_Chatrooms_ChatRoomsChatRoomId",
-                        column: x => x.ChatRoomsChatRoomId,
+                        name: "FK_Messages_Chatrooms_ChatRoomId",
+                        column: x => x.ChatRoomId,
                         principalTable: "Chatrooms",
-                        principalColumn: "ChatRoomId");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Friends",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    FriendId = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Friends", x => x.Id);
+                        principalColumn: "ChatRoomId",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Friends_Users_UserId",
-                        column: x => x.UserId,
+                        name: "FK_Messages_Users_SenderId",
+                        column: x => x.SenderId,
                         principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
@@ -125,17 +138,16 @@ namespace Server_1_.Migrations
                 name: "Participants",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<int>(type: "integer", nullable: false),
                     ChatroomId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<int>(type: "integer", nullable: false),
                     JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     LeftAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Role = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Participants", x => x.Id);
+                    table.PrimaryKey("PK_Participants", x => new { x.ChatroomId, x.UserId });
                     table.ForeignKey(
                         name: "FK_Participants_Chatrooms_ChatroomId",
                         column: x => x.ChatroomId,
@@ -173,10 +185,59 @@ namespace Server_1_.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Friends_UserId",
+            migrationBuilder.InsertData(
+                table: "Chatrooms",
+                columns: new[] { "ChatRoomId", "CreatedAt", "CreatedBy", "IsDeleted", "IsGroup", "Name", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 1, new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc), 0, false, false, "General Chat", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 2, new DateTime(2023, 1, 1, 10, 5, 0, 0, DateTimeKind.Utc), 0, false, false, "Tech Talk", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 3, new DateTime(2023, 1, 1, 10, 10, 0, 0, DateTimeKind.Utc), 0, false, false, "Off-Topic", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Users",
+                columns: new[] { "UserId", "IsOnline", "Token", "UserName" },
+                values: new object[,]
+                {
+                    { 1, false, "password123", "Alice" },
+                    { 2, false, "password123", "Bob" },
+                    { 3, false, "password123", "Charlie" }
+                });
+
+            migrationBuilder.InsertData(
                 table: "Friends",
-                column: "UserId");
+                columns: new[] { "FriendId", "UserId", "CreatedAt", "Status" },
+                values: new object[,]
+                {
+                    { 2, 1, new DateTime(2023, 1, 1, 9, 0, 0, 0, DateTimeKind.Utc), 1 },
+                    { 1, 2, new DateTime(2023, 1, 1, 9, 1, 0, 0, DateTimeKind.Utc), 1 }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Messages",
+                columns: new[] { "MessageId", "ChatRoomId", "CreatedAt", "IsDeleted", "Message", "SenderId", "UpdatedAt", "UserId" },
+                values: new object[,]
+                {
+                    { 1, 1, new DateTime(2023, 1, 1, 10, 15, 0, 0, DateTimeKind.Utc), false, "Hello everyone in General Chat!", 1, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), 0 },
+                    { 2, 1, new DateTime(2023, 1, 1, 10, 16, 0, 0, DateTimeKind.Utc), false, "Hi Alice!", 2, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), 0 },
+                    { 3, 2, new DateTime(2023, 1, 1, 10, 17, 0, 0, DateTimeKind.Utc), false, "Anyone here interested in AI?", 3, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), 0 }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Participants",
+                columns: new[] { "ChatroomId", "UserId", "Id", "JoinedAt", "LeftAt", "Role" },
+                values: new object[,]
+                {
+                    { 1, 1, 0, new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc), null, "member" },
+                    { 1, 2, 0, new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc), null, "member" },
+                    { 2, 3, 0, new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc), null, "member" }
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Friends_FriendId",
+                table: "Friends",
+                column: "FriendId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Medias_MessageId",
@@ -184,9 +245,14 @@ namespace Server_1_.Migrations
                 column: "MessageId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Messages_ChatRoomsChatRoomId",
+                name: "IX_Messages_ChatRoomId",
                 table: "Messages",
-                column: "ChatRoomsChatRoomId");
+                column: "ChatRoomId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Messages_SenderId",
+                table: "Messages",
+                column: "SenderId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Notifications_RecipientUserId",
@@ -197,11 +263,6 @@ namespace Server_1_.Migrations
                 name: "IX_Notifications_SenderId",
                 table: "Notifications",
                 column: "SenderId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Participants_ChatroomId",
-                table: "Participants",
-                column: "ChatroomId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Participants_UserId",
@@ -228,10 +289,10 @@ namespace Server_1_.Migrations
                 name: "Messages");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "Chatrooms");
 
             migrationBuilder.DropTable(
-                name: "Chatrooms");
+                name: "Users");
         }
     }
 }

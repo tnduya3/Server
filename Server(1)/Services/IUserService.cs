@@ -16,6 +16,7 @@ namespace Server_1_.Services // Đảm bảo namespace Services của bạn đư
         Task<List<Users>> GetUsersAsync();
         Task<bool> UpdateUserAsync(int id, string newUsername); //Thêm các tham số cần thiết
         Task<bool> DeleteUserAsync(int id);
+        Task<bool> UpdateDeviceTokenAsync(int userId, string deviceToken);
         // Các phương thức khác liên quan đến người dùng
     }
 }

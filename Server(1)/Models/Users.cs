@@ -11,6 +11,7 @@ namespace Server_1_.Models
         public string? UserName { get; set; }
         public string? Token { get; set; }
         public bool IsOnline { get; set; }
+        public string? DeviceToken { get; set; } // Thêm dòng này
 
         // Mối quan hệ: User này là người gửi yêu cầu kết bạn (UserId)  
         [InverseProperty("User")] // "User" là tên thuộc tính điều hướng trong model Friend  

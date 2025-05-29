@@ -12,8 +12,8 @@ using Server_1_.Data;
 namespace Server_1_.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250518160910_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250529133931_AddDeviceTokenToUser")]
+    partial class AddDeviceTokenToUser
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -54,30 +54,75 @@ namespace Server_1_.Migrations
                     b.HasKey("ChatRoomId");
 
                     b.ToTable("Chatrooms");
+
+                    b.HasData(
+                        new
+                        {
+                            ChatRoomId = 1,
+                            CreatedAt = new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = 0,
+                            IsDeleted = false,
+                            IsGroup = false,
+                            Name = "General Chat",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ChatRoomId = 2,
+                            CreatedAt = new DateTime(2023, 1, 1, 10, 5, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = 0,
+                            IsDeleted = false,
+                            IsGroup = false,
+                            Name = "Tech Talk",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ChatRoomId = 3,
+                            CreatedAt = new DateTime(2023, 1, 1, 10, 10, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = 0,
+                            IsDeleted = false,
+                            IsGroup = false,
+                            Name = "Off-Topic",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        });
                 });
 
             modelBuilder.Entity("Server_1_.Models.Friends", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int>("UserId")
                         .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("FriendId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("UserId")
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.HasKey("Id");
+                    b.HasKey("UserId", "FriendId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("FriendId");
 
                     b.ToTable("Friends");
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = 1,
+                            FriendId = 2,
+                            CreatedAt = new DateTime(2023, 1, 1, 9, 0, 0, 0, DateTimeKind.Utc),
+                            Status = 1
+                        },
+                        new
+                        {
+                            UserId = 2,
+                            FriendId = 1,
+                            CreatedAt = new DateTime(2023, 1, 1, 9, 1, 0, 0, DateTimeKind.Utc),
+                            Status = 1
+                        });
                 });
 
             modelBuilder.Entity("Server_1_.Models.Medias", b =>
@@ -123,9 +168,6 @@ namespace Server_1_.Migrations
                     b.Property<int>("ChatRoomId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("ChatRoomsChatRoomId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -146,9 +188,46 @@ namespace Server_1_.Migrations
 
                     b.HasKey("MessageId");
 
-                    b.HasIndex("ChatRoomsChatRoomId");
+                    b.HasIndex("ChatRoomId");
+
+                    b.HasIndex("SenderId");
 
                     b.ToTable("Messages");
+
+                    b.HasData(
+                        new
+                        {
+                            MessageId = 1,
+                            ChatRoomId = 1,
+                            CreatedAt = new DateTime(2023, 1, 1, 10, 15, 0, 0, DateTimeKind.Utc),
+                            IsDeleted = false,
+                            Message = "Hello everyone in General Chat!",
+                            SenderId = 1,
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            UserId = 0
+                        },
+                        new
+                        {
+                            MessageId = 2,
+                            ChatRoomId = 1,
+                            CreatedAt = new DateTime(2023, 1, 1, 10, 16, 0, 0, DateTimeKind.Utc),
+                            IsDeleted = false,
+                            Message = "Hi Alice!",
+                            SenderId = 2,
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            UserId = 0
+                        },
+                        new
+                        {
+                            MessageId = 3,
+                            ChatRoomId = 2,
+                            CreatedAt = new DateTime(2023, 1, 1, 10, 17, 0, 0, DateTimeKind.Utc),
+                            IsDeleted = false,
+                            Message = "Anyone here interested in AI?",
+                            SenderId = 3,
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            UserId = 0
+                        });
                 });
 
             modelBuilder.Entity("Server_1_.Models.Notifications", b =>
@@ -193,13 +272,13 @@ namespace Server_1_.Migrations
 
             modelBuilder.Entity("Server_1_.Models.Participants", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int>("ChatroomId")
                         .HasColumnType("integer");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
 
-                    b.Property<int>("ChatroomId")
+                    b.Property<int>("Id")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("JoinedAt")
@@ -212,16 +291,37 @@ namespace Server_1_.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChatroomId");
+                    b.HasKey("ChatroomId", "UserId");
 
                     b.HasIndex("UserId");
 
                     b.ToTable("Participants");
+
+                    b.HasData(
+                        new
+                        {
+                            ChatroomId = 1,
+                            UserId = 1,
+                            Id = 0,
+                            JoinedAt = new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc),
+                            Role = "member"
+                        },
+                        new
+                        {
+                            ChatroomId = 1,
+                            UserId = 2,
+                            Id = 0,
+                            JoinedAt = new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc),
+                            Role = "member"
+                        },
+                        new
+                        {
+                            ChatroomId = 2,
+                            UserId = 3,
+                            Id = 0,
+                            JoinedAt = new DateTime(2023, 1, 1, 10, 0, 0, 0, DateTimeKind.Utc),
+                            Role = "member"
+                        });
                 });
 
             modelBuilder.Entity("Server_1_.Models.Users", b =>
@@ -231,6 +331,9 @@ namespace Server_1_.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserId"));
+
+                    b.Property<string>("DeviceToken")
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsOnline")
                         .HasColumnType("boolean");
@@ -244,15 +347,46 @@ namespace Server_1_.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            UserId = 1,
+                            IsOnline = false,
+                            Token = "password123",
+                            UserName = "Alice"
+                        },
+                        new
+                        {
+                            UserId = 2,
+                            IsOnline = false,
+                            Token = "password123",
+                            UserName = "Bob"
+                        },
+                        new
+                        {
+                            UserId = 3,
+                            IsOnline = false,
+                            Token = "password123",
+                            UserName = "Charlie"
+                        });
                 });
 
             modelBuilder.Entity("Server_1_.Models.Friends", b =>
                 {
-                    b.HasOne("Server_1_.Models.Users", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                    b.HasOne("Server_1_.Models.Users", "FriendUser")
+                        .WithMany("ReceivedFriendRequests")
+                        .HasForeignKey("FriendId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Server_1_.Models.Users", "User")
+                        .WithMany("SentFriendRequests")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FriendUser");
 
                     b.Navigation("User");
                 });
@@ -272,7 +406,15 @@ namespace Server_1_.Migrations
                 {
                     b.HasOne("Server_1_.Models.ChatRooms", null)
                         .WithMany("Messages")
-                        .HasForeignKey("ChatRoomsChatRoomId");
+                        .HasForeignKey("ChatRoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Server_1_.Models.Users", null)
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Server_1_.Models.Notifications", b =>
@@ -316,6 +458,13 @@ namespace Server_1_.Migrations
                     b.Navigation("Messages");
 
                     b.Navigation("Participants");
+                });
+
+            modelBuilder.Entity("Server_1_.Models.Users", b =>
+                {
+                    b.Navigation("ReceivedFriendRequests");
+
+                    b.Navigation("SentFriendRequests");
                 });
 #pragma warning restore 612, 618
         }

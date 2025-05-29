@@ -73,6 +73,29 @@ namespace Server_1_.Controllers
             return NoContent();
         }
 
+        // PUT /api/users/{id}/token
+        [HttpPut("{id}/token")]
+        public async Task<IActionResult> UpdateDeviceToken(int id, [FromBody] string deviceToken)
+        {
+            if (string.IsNullOrEmpty(deviceToken))
+            {
+                return BadRequest("Device token cannot be empty");
+            }
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+            user.DeviceToken = deviceToken; // Giả sử bạn đã thêm cột DeviceToken vào User model
+            await _userService.UpdateDeviceTokenAsync(user.UserId, deviceToken);
+            return NoContent();
+        }
+        // Thêm mô tả Swagger cho phương thức này
+        // Mô tả Swagger cho phương thức UpdateDeviceToken
+        // [SwaggerOperation(Summary = "Cập nhật token thiết bị của người dùng", Description = "Cập nhật token thiết bị cho người dùng với ID nhất định.")]
+
+
+
         // DELETE /api/users/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)

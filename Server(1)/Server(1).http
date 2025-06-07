@@ -4,3 +4,90 @@ GET {{Server_1__HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Friend Management API Tests
+
+# Gửi yêu cầu kết bạn (User 1 gửi cho User 3)
+POST {{Server_1__HostAddress}}/api/friends/send-request
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "friendId": 3
+}
+
+###
+
+# Chấp nhận yêu cầu kết bạn (User 3 chấp nhận yêu cầu từ User 1)
+POST {{Server_1__HostAddress}}/api/friends/accept-request
+Content-Type: application/json
+
+{
+    "userId": 3,
+    "friendId": 1
+}
+
+###
+
+# Từ chối yêu cầu kết bạn
+POST {{Server_1__HostAddress}}/api/friends/reject-request
+Content-Type: application/json
+
+{
+    "userId": 3,
+    "friendId": 1
+}
+
+###
+
+# Chặn người dùng
+POST {{Server_1__HostAddress}}/api/friends/block-user
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "friendId": 3
+}
+
+###
+
+# Hủy kết bạn
+POST {{Server_1__HostAddress}}/api/friends/unfriend
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "friendId": 2
+}
+
+###
+
+# Lấy danh sách bạn bè của User 1
+GET {{Server_1__HostAddress}}/api/friends/1/friends
+Accept: application/json
+
+###
+
+# Lấy danh sách yêu cầu kết bạn chờ xử lý của User 3
+GET {{Server_1__HostAddress}}/api/friends/3/pending-requests
+Accept: application/json
+
+###
+
+# Lấy danh sách yêu cầu kết bạn đã gửi của User 1
+GET {{Server_1__HostAddress}}/api/friends/1/sent-requests
+Accept: application/json
+
+###
+
+# Kiểm tra trạng thái quan hệ giữa User 1 và User 2
+GET {{Server_1__HostAddress}}/api/friends/1/status/2
+Accept: application/json
+
+###
+
+# Kiểm tra xem User 1 và User 2 có phải bạn bè không
+GET {{Server_1__HostAddress}}/api/friends/1/are-friends/2
+Accept: application/json
+
+###

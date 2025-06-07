@@ -5,7 +5,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Server_1_.Models;
 
-namespace Server_1_.Services // Đảm bảo namespace Services của bạn được import
+namespace Server_1_.Services 
 {
     // Interface cho UserService
     public interface IUserService

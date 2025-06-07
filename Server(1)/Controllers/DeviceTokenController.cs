@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Server_1_.Models;
-using Microsoft.Extensions.Logging; // Để log lỗi
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using Server_1_.Services;
 

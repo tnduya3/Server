@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Server_1_.Models;
-using Server_1_.Data; // Giả sử bạn đặt AppDbContext trong folder Data
+using Server_1_.Data;
 
 namespace Server_1_.Services
 {

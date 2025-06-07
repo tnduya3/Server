@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Server_1_.Models; // Đảm bảo namespace của Models được import
+using Server_1_.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;

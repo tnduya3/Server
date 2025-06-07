@@ -2,7 +2,7 @@
 using Server_1_.Models;
 using static Server_1_.Models.Friends;
 
-namespace Server_1_.Data // Thay YourProjectName bằng tên project của bạn
+namespace Server_1_.Data
 {
     public class AppDbContext : DbContext
     {
@@ -10,7 +10,6 @@ namespace Server_1_.Data // Thay YourProjectName bằng tên project của bạn
         {
         }
 
-        // DbSet cho các models của bạn
         public DbSet<Users> Users { get; set; }
         public DbSet<ChatRooms> Chatrooms { get; set; }
         public DbSet<Messages> Messages { get; set; }

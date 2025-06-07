@@ -1,5 +1,5 @@
 ﻿using Server_1_.Models;
-using Server_1_.Data; // Giả sử bạn đặt AppDbContext trong folder Data
+using Server_1_.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;

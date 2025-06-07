@@ -11,8 +11,8 @@ namespace Server_1_.Hubs
     public class ChatHub : Hub
     {
         private readonly IMessageService _messageService;
-        private readonly IUserService _userService; // Có thể cần User service
-        private readonly IChatroomService _chatroomService; // Có thể cần Chatroom service
+        private readonly IUserService _userService; 
+        private readonly IChatroomService _chatroomService; 
 
         // Inject các service cần thiết vào constructor
         public ChatHub(IMessageService messageService, IUserService userService, IChatroomService chatroomService)

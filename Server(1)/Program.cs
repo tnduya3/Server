@@ -22,6 +22,7 @@ builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddSingleton<IFirebaseNotificationService, FirebaseNotificationService>();
+builder.Services.AddSingleton<IConnectionTrackingService, ConnectionTrackingService>();
 //builder.Services.AddSingleton<IWebHostEnvironment>();
 
 builder.Services.AddSignalR();
@@ -53,6 +54,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Thêm static files để serve HTML client
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 

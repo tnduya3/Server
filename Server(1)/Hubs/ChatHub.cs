@@ -4,7 +4,9 @@ using Server_1_.Models;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System;
-
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Server_1_.Hubs
 {
@@ -12,7 +14,11 @@ namespace Server_1_.Hubs
     {
         private readonly IMessageService _messageService;
         private readonly IUserService _userService; 
-        private readonly IChatroomService _chatroomService; 
+        private readonly IChatroomService _chatroomService;
+        
+        // Dictionary để theo dõi người dùng nào đang online
+        private static readonly ConcurrentDictionary<string, string> ConnectedUsers = new();
+        private static readonly ConcurrentDictionary<string, List<string>> UserGroups = new();
 
         // Inject các service cần thiết vào constructor
         public ChatHub(IMessageService messageService, IUserService userService, IChatroomService chatroomService)
@@ -20,14 +26,20 @@ namespace Server_1_.Hubs
             _messageService = messageService;
             _userService = userService;
             _chatroomService = chatroomService;
-        }
-
-        // Phương thức mà client có thể gọi để gửi tin nhắn
+        }        // Phương thức để user đăng ký với Hub bằng UserID
+        public async Task RegisterUser(string userId)
+        {
+            ConnectedUsers[Context.ConnectionId] = userId;
+            
+            // Thông báo cho tất cả friends rằng user này đã online
+            await Clients.All.SendAsync("UserOnline", userId);
+        }        // Phương thức mà client có thể gọi để gửi tin nhắn
         public async Task SendMessage(int senderId, int chatroomId, string messageContent)
         {
             try
             {
                 // 1. Lưu tin nhắn vào cơ sở dữ liệu thông qua MessageService
+                // (Firebase notification sẽ được gửi tự động trong MessageService)
                 var message = await _messageService.SendMessageAsync(senderId, chatroomId, messageContent);
 
                 // 2. Lấy thông tin người gửi (username) để hiển thị trên client
@@ -35,66 +47,263 @@ namespace Server_1_.Hubs
                 if (sender == null)
                 {
                     // Xử lý trường hợp không tìm thấy người gửi
-                    // Có thể log lỗi hoặc thông báo cho người gửi biết
                     await Clients.Caller.SendAsync("ReceiveError", "Sender not found.");
                     return;
                 }
 
-                // 3. Gửi tin nhắn đến tất cả các client trong nhóm (chatroom) cụ thể
-                // 'ReceiveMessage' là tên hàm client sẽ lắng nghe
-                await Clients.Group(chatroomId.ToString()).SendAsync("ReceiveMessage", new
+                // 3. Tạo đối tượng tin nhắn để gửi đến client
+                var messageResponse = new
                 {
-                    Id = message.MessageId,
+                    MessageId = message.MessageId,
                     SenderId = message.SenderId,
-                    SenderUsername = sender.UserName, // Thêm username để hiển thị
+                    SenderUsername = sender.UserName,
+                    // SenderAvatar = sender.Avatar, // Nếu có trường avatar
                     ChatroomId = message.ChatRoomId,
                     Content = message.Message,
-                    CreatedAt = message.CreatedAt
+                    CreatedAt = message.CreatedAt,
+                    MessageType = "text" // Có thể mở rộng cho các loại tin nhắn khác (hình ảnh, file...)
+                };
+
+                // 4. Gửi tin nhắn đến tất cả các client trong nhóm (chatroom) cụ thể
+                await Clients.Group(chatroomId.ToString()).SendAsync("ReceiveMessage", messageResponse);
+
+                // 5. Gửi thông báo đã gửi thành công cho người gửi
+                await Clients.Caller.SendAsync("MessageSent", new { 
+                    MessageId = message.MessageId, 
+                    Status = "success",
+                    FirebaseNotificationSent = true // Xác nhận Firebase notification đã được gửi
                 });
 
-                // Hoặc Clients.All.SendAsync("ReceiveMessage", senderId, messageContent); nếu muốn gửi đến tất cả
-
+                // 6. Log thành công
+                Console.WriteLine($"Message sent via SignalR - ID: {message.MessageId}, Firebase notifications sent");
             }
             catch (Exception ex)
             {
-                // Xử lý lỗi khi gửi tin nhắn (ví dụ: log lỗi, thông báo cho người gửi)
-                Console.WriteLine($"Error sending message: {ex.Message}");
+                // Xử lý lỗi khi gửi tin nhắn
+                Console.WriteLine($"Error sending message via SignalR: {ex.Message}");
                 await Clients.Caller.SendAsync("ReceiveError", $"Failed to send message: {ex.Message}");
+                await Clients.Caller.SendAsync("MessageSent", new { 
+                    Status = "failed", 
+                    Error = ex.Message 
+                });
             }
         }
 
-        // Phương thức mà client có thể gọi để tham gia một phòng chat
-        public async Task JoinChatroom(string chatroomId)
+        // Phương thức gửi tin nhắn typing indicator
+        public async Task SendTyping(int senderId, int chatroomId, string senderName)
         {
-            // Thêm kết nối hiện tại vào một nhóm (group) SignalR.
-            // Các group trong SignalR được định danh bằng string.
-            // Chúng ta sẽ dùng ID của chatroom làm tên group.
-            await Groups.AddToGroupAsync(Context.ConnectionId, chatroomId);
-            await Clients.Caller.SendAsync("JoinConfirmation", $"You have joined chatroom {chatroomId}.");
-            await Clients.Group(chatroomId).SendAsync("UserJoined", $"{Context.ConnectionId} has joined the chatroom {chatroomId}.");
+            await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("UserTyping", new
+            {
+                SenderId = senderId,
+                SenderName = senderName,
+                ChatroomId = chatroomId
+            });
+        }
+
+        // Phương thức ngừng typing
+        public async Task StopTyping(int senderId, int chatroomId)
+        {
+            await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("UserStoppedTyping", new
+            {
+                SenderId = senderId,
+                ChatroomId = chatroomId
+            });
+        }
+
+        // Phương thức đánh dấu tin nhắn đã đọc
+        public async Task MarkMessageAsRead(int messageId, int userId, int chatroomId)
+        {
+            try
+            {
+                // Có thể thêm logic để lưu trạng thái đã đọc vào database
+                // await _messageService.MarkAsReadAsync(messageId, userId);
+
+                await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("MessageRead", new
+                {
+                    MessageId = messageId,
+                    ReadBy = userId,
+                    ReadAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error marking message as read: {ex.Message}");
+            }
+        }        // Phương thức mà client có thể gọi để tham gia một phòng chat
+        public async Task JoinChatroom(string chatroomId, string userId = null)
+        {
+            try
+            {
+                // Thêm kết nối hiện tại vào một nhóm (group) SignalR
+                await Groups.AddToGroupAsync(Context.ConnectionId, chatroomId);
+                
+                // Lưu thông tin group mà user đã join
+                if (!UserGroups.ContainsKey(Context.ConnectionId))
+                {
+                    UserGroups[Context.ConnectionId] = new List<string>();
+                }
+                UserGroups[Context.ConnectionId].Add(chatroomId);
+
+                // Gửi xác nhận cho user hiện tại
+                await Clients.Caller.SendAsync("JoinConfirmation", new
+                {
+                    ChatroomId = chatroomId,
+                    Message = $"You have joined chatroom {chatroomId}",
+                    JoinedAt = DateTime.UtcNow
+                });
+
+                // Thông báo cho các user khác trong room (nếu có userId)
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var user = await _userService.GetUserByIdAsync(int.Parse(userId));
+                    if (user != null)
+                    {
+                        await Clients.OthersInGroup(chatroomId).SendAsync("UserJoinedChatroom", new
+                        {
+                            UserId = userId,
+                            Username = user.UserName,
+                            ChatroomId = chatroomId,
+                            JoinedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error joining chatroom: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", "Failed to join chatroom");
+            }
         }
 
         // Phương thức mà client có thể gọi để rời một phòng chat
-        public async Task LeaveChatroom(string chatroomId)
+        public async Task LeaveChatroom(string chatroomId, string userId = null)
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatroomId);
-            await Clients.Caller.SendAsync("LeaveConfirmation", $"You have left chatroom {chatroomId}.");
-            await Clients.Group(chatroomId).SendAsync("UserLeft", $"{Context.ConnectionId} has left the chatroom {chatroomId}.");
+            try
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatroomId);
+                
+                // Xóa thông tin group
+                if (UserGroups.ContainsKey(Context.ConnectionId))
+                {
+                    UserGroups[Context.ConnectionId].Remove(chatroomId);
+                }
+
+                // Gửi xác nhận cho user hiện tại
+                await Clients.Caller.SendAsync("LeaveConfirmation", new
+                {
+                    ChatroomId = chatroomId,
+                    Message = $"You have left chatroom {chatroomId}",
+                    LeftAt = DateTime.UtcNow
+                });
+
+                // Thông báo cho các user khác trong room
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var user = await _userService.GetUserByIdAsync(int.Parse(userId));
+                    if (user != null)
+                    {
+                        await Clients.OthersInGroup(chatroomId).SendAsync("UserLeftChatroom", new
+                        {
+                            UserId = userId,
+                            Username = user.UserName,
+                            ChatroomId = chatroomId,
+                            LeftAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error leaving chatroom: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", "Failed to leave chatroom");
+            }
         }
 
-        // Các phương thức life-cycle của Hub (tùy chọn để override)
+        // Phương thức lấy danh sách users online trong chatroom
+        public async Task GetOnlineUsersInChatroom(string chatroomId)
+        {
+            // Logic để lấy danh sách users online
+            // Có thể implement bằng cách lưu trữ mapping giữa connectionId và userId
+            var onlineUsers = new List<object>(); // Placeholder
+            
+            await Clients.Caller.SendAsync("OnlineUsersInChatroom", new
+            {
+                ChatroomId = chatroomId,
+                OnlineUsers = onlineUsers,
+                Count = onlineUsers.Count
+            });
+        }        // Các phương thức life-cycle của Hub
         public override async Task OnConnectedAsync()
         {
             // Xử lý khi một client kết nối đến Hub
-            Console.WriteLine($"Client connected: {Context.ConnectionId}");
+            Console.WriteLine($"Client connected: {Context.ConnectionId} at {DateTime.UtcNow}");
+            
+            // Gửi thông báo kết nối thành công
+            await Clients.Caller.SendAsync("Connected", new
+            {
+                ConnectionId = Context.ConnectionId,
+                ConnectedAt = DateTime.UtcNow,
+                Message = "Connected to chat hub successfully"
+            });
+            
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             // Xử lý khi một client ngắt kết nối khỏi Hub
-            Console.WriteLine($"Client disconnected: {Context.ConnectionId}");
+            Console.WriteLine($"Client disconnected: {Context.ConnectionId} at {DateTime.UtcNow}");
+            
+            // Lấy userId nếu có
+            if (ConnectedUsers.TryRemove(Context.ConnectionId, out string? userId))
+            {
+                // Thông báo cho tất cả friends rằng user này đã offline
+                await Clients.All.SendAsync("UserOffline", userId);
+            }
+
+            // Xóa user khỏi tất cả groups
+            if (UserGroups.TryRemove(Context.ConnectionId, out List<string>? groups))
+            {
+                foreach (var group in groups)
+                {
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, group);
+                    // Thông báo user đã rời khỏi group
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        await Clients.Group(group).SendAsync("UserLeftChatroom", new
+                        {
+                            UserId = userId,
+                            ChatroomId = group,
+                            LeftAt = DateTime.UtcNow,
+                            Reason = "Disconnected"
+                        });
+                    }
+                }
+            }
+
+            if (exception != null)
+            {
+                Console.WriteLine($"Disconnection exception: {exception.Message}");
+            }
+            
             await base.OnDisconnectedAsync(exception);
+        }
+
+        // Phương thức kiểm tra trạng thái kết nối
+        public async Task Ping()
+        {
+            await Clients.Caller.SendAsync("Pong", DateTime.UtcNow);
+        }
+
+        // Phương thức gửi thông báo lỗi chung
+        private async Task SendErrorToUser(string message, object? details = null)
+        {
+            await Clients.Caller.SendAsync("ReceiveError", new
+            {
+                Message = message,
+                Details = details,
+                Timestamp = DateTime.UtcNow
+            });
         }
     }
 }

@@ -11,6 +11,15 @@ namespace Server_1_.Services
         Task<Messages> GetMessageByIdAsync(int messageId);
         Task<bool> EditMessageAsync(int messageId, string newContent);
         Task<bool> DeleteMessageAsync(int messageId);
+        Task<IEnumerable<ParticipantWithToken>> GetParticipantsWithTokensAsync(int chatroomId);
         // Các phương thức khác liên quan đến tin nhắn (ví dụ: đánh dấu đã đọc)
+    }
+
+    // DTO cho participants với device tokens
+    public class ParticipantWithToken
+    {
+        public int UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string DeviceToken { get; set; } = string.Empty;
     }
 }

@@ -75,6 +75,7 @@ namespace Server_1_.Services
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .OrderBy(m => m.CreatedAt)
                 .ToListAsync();
         }
 
@@ -112,6 +113,21 @@ namespace Server_1_.Services
             _context.Messages.Remove(message);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<IEnumerable<ParticipantWithToken>> GetParticipantsWithTokensAsync(int chatroomId)
+        {
+            return await _context.Participants
+                .Where(p => p.ChatroomId == chatroomId && p.LeftAt == null)
+                .Include(p => p.User)
+                .Where(p => !string.IsNullOrEmpty(p.User.DeviceToken))
+                .Select(p => new ParticipantWithToken
+                {
+                    UserId = p.UserId,
+                    UserName = p.User.UserName ?? "Unknown",
+                    DeviceToken = p.User.DeviceToken!
+                })
+                .ToListAsync();
         }
         // Implement các phương thức khác của IMessageService  
     }

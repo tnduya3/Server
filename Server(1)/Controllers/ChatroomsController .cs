@@ -5,20 +5,29 @@ using System.Collections.Generic;
 using System;
 using Server_1_.Services;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.SignalR;
+using Server_1_.Hubs;
 
 namespace Server_1_.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class ChatroomsController : ControllerBase
+    [Route("api/[controller]")]    public class ChatroomsController : ControllerBase
     {
         private readonly IChatroomService _chatroomService;
-        private readonly IMessageService _messageService; // Inject MessageService để lấy tin nhắn
+        private readonly IMessageService _messageService;
+        private readonly IUserService _userService;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public ChatroomsController(IChatroomService chatroomService, IMessageService messageService)
+        public ChatroomsController(
+            IChatroomService chatroomService, 
+            IMessageService messageService,
+            IUserService userService,
+            IHubContext<ChatHub> hubContext)
         {
             _chatroomService = chatroomService;
-            _messageService = messageService; // Lưu MessageService vào một biến
+            _messageService = messageService;
+            _userService = userService;
+            _hubContext = hubContext;
         }
 
         // GET /api/chatrooms
@@ -125,6 +134,90 @@ namespace Server_1_.Controllers
             return Ok(messages);
         }
 
+        // API endpoint để thông báo user online trong chatroom
+        [HttpPost("{chatroomId}/online")]
+        public async Task<IActionResult> NotifyUserOnline(int chatroomId, [FromBody] UserOnlineRequest request)
+        {
+            try
+            {
+                var user = await _userService.GetUserByIdAsync(request.UserId);
+                if (user == null)
+                {
+                    return NotFound("User not found");
+                }
+
+                // Gửi thông báo qua SignalR
+                await _hubContext.Clients.Group(chatroomId.ToString())
+                    .SendAsync("UserOnlineInChatroom", new
+                    {
+                        UserId = request.UserId,
+                        Username = user.UserName,
+                        ChatroomId = chatroomId,
+                        OnlineAt = DateTime.UtcNow
+                    });
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal Server Error: " + ex.Message);
+            }
+        }
+
+        // API endpoint để broadcast thông báo chung trong chatroom
+        [HttpPost("{chatroomId}/broadcast")]
+        public async Task<IActionResult> BroadcastNotification(int chatroomId, [FromBody] BroadcastRequest request)
+        {
+            try
+            {
+                await _hubContext.Clients.Group(chatroomId.ToString())
+                    .SendAsync("ChatroomNotification", new
+                    {
+                        Type = request.Type,
+                        Message = request.Message,
+                        ChatroomId = chatroomId,
+                        Timestamp = DateTime.UtcNow,
+                        Data = request.Data
+                    });
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal Server Error: " + ex.Message);
+            }
+        }
+
+        // API endpoint để lấy thống kê chatroom
+        [HttpGet("{chatroomId}/stats")]
+        public async Task<ActionResult<object>> GetChatroomStats(int chatroomId)
+        {
+            try
+            {
+                var chatroom = await _chatroomService.GetChatroomByIdAsync(chatroomId);
+                if (chatroom == null)
+                {
+                    return NotFound();
+                }
+
+                var participants = await _chatroomService.GetParticipantsInChatroomAsync(chatroomId);
+                var messages = await _messageService.GetMessagesInChatroomAsync(chatroomId, 1, 1);
+
+                return Ok(new
+                {
+                    ChatroomId = chatroomId,
+                    // Name = chatroom.RoomName,
+                    ParticipantCount = participants.Count,
+                    CreatedAt = chatroom.CreatedAt,
+                    // Có thể thêm các thống kê khác như số tin nhắn, hoạt động gần đây...
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal Server Error: " + ex.Message);
+            }
+        }
+
         // DTO cho các request
         public class CreateChatroomRequest
         {
@@ -138,6 +231,24 @@ namespace Server_1_.Controllers
             public int Id { get; set; }
             [Required]
             public required string Name { get; set; }
+        }
+
+        // DTO classes for new endpoints
+        public class UserOnlineRequest
+        {
+            [Required]
+            public int UserId { get; set; }
+        }
+
+        public class BroadcastRequest
+        {
+            [Required]
+            public string Type { get; set; } = string.Empty;
+            
+            [Required]
+            public string Message { get; set; } = string.Empty;
+            
+            public object? Data { get; set; }
         }
     }
 }

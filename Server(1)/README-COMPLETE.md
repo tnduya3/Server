@@ -22,7 +22,7 @@
          │              ASP.NET Core Server          │
          │  ┌─────────────┐  ┌─────────────────────┐ │
          │  │   SignalR   │  │      REST APIs      │ │
-         │  │   ChatHub   │  │    Controllers     │ │
+         │  │   ChatHub   │  │    Controllers      │ │
          │  └─────────────┘  └─────────────────────┘ │
          │  ┌─────────────┐  ┌─────────────────────┐ │
          │  │   Services  │  │  Firebase Service   │ │

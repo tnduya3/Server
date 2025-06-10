@@ -16,7 +16,7 @@ Hệ thống chat real-time này sử dụng ASP.NET Core SignalR để cung c�
 
 ### 1. Cài đặt dependencies
 ```bash
-cd "d:\Document\Project\Mạng căn bản\Server\Server(1)"
+cd "Server(1)"
 dotnet restore
 ```
 

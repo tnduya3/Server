@@ -17,12 +17,11 @@ Hệ thống chat real-time này sử dụng ASP.NET Core SignalR để cung c�
 ### 1. Cài đặt dependencies
 ```bash
 cd "Server(1)"
-dotnet restore
 ```
 
 ### 2. Chạy server
 ```bash
-dotnet run
+start-server.bat
 ```
 
 Server sẽ chạy trên:

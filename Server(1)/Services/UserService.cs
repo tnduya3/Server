@@ -95,5 +95,24 @@ namespace Server_1_.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<Users?> GetUserByEmailAsync(string email)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+        public async Task<Users?> CreateUserAsync(Users user)
+        {
+            try
+            {
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+                return user;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 }

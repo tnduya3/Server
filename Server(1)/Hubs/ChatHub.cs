@@ -42,40 +42,30 @@ namespace Server_1_.Hubs
                 // (Firebase notification sẽ được gửi tự động trong MessageService)
                 var message = await _messageService.SendMessageAsync(senderId, chatroomId, messageContent);
 
-                // 2. Lấy thông tin người gửi (username) để hiển thị trên client
-                var sender = await _userService.GetUserByIdAsync(senderId);
-                if (sender == null)
-                {
-                    // Xử lý trường hợp không tìm thấy người gửi
-                    await Clients.Caller.SendAsync("ReceiveError", "Sender not found.");
-                    return;
-                }
-
-                // 3. Tạo đối tượng tin nhắn để gửi đến client
+                // 2. Tạo đối tượng tin nhắn để gửi đến client sử dụng SenderName từ model
                 var messageResponse = new
                 {
                     MessageId = message.MessageId,
                     SenderId = message.SenderId,
-                    SenderUsername = sender.UserName,
-                    // SenderAvatar = sender.Avatar, // Nếu có trường avatar
+                    SenderName = message.SenderName, // Sử dụng SenderName từ model Messages
                     ChatroomId = message.ChatRoomId,
                     Content = message.Message,
                     CreatedAt = message.CreatedAt,
                     MessageType = "text" // Có thể mở rộng cho các loại tin nhắn khác (hình ảnh, file...)
                 };
 
-                // 4. Gửi tin nhắn đến tất cả các client trong nhóm (chatroom) cụ thể
+                // 3. Gửi tin nhắn đến tất cả các client trong nhóm (chatroom) cụ thể
                 await Clients.Group(chatroomId.ToString()).SendAsync("ReceiveMessage", messageResponse);
 
-                // 5. Gửi thông báo đã gửi thành công cho người gửi
+                // 4. Gửi thông báo đã gửi thành công cho người gửi
                 await Clients.Caller.SendAsync("MessageSent", new { 
                     MessageId = message.MessageId, 
                     Status = "success",
                     FirebaseNotificationSent = true // Xác nhận Firebase notification đã được gửi
                 });
 
-                // 6. Log thành công
-                Console.WriteLine($"Message sent via SignalR - ID: {message.MessageId}, Firebase notifications sent");
+                // 5. Log thành công
+                Console.WriteLine($"Message sent via SignalR - ID: {message.MessageId}, SenderName: {message.SenderName}, Firebase notifications sent");
             }
             catch (Exception ex)
             {
@@ -130,7 +120,7 @@ namespace Server_1_.Hubs
                 Console.WriteLine($"Error marking message as read: {ex.Message}");
             }
         }        // Phương thức mà client có thể gọi để tham gia một phòng chat
-        public async Task JoinChatroom(string chatroomId, string userId = null)
+        public async Task JoinChatroom(string chatroomId, string userId)
         {
             try
             {

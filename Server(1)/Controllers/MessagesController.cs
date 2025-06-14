@@ -44,27 +44,19 @@ namespace Server_1_.Controllers
                 // 1. Lưu tin nhắn vào database (Firebase notification đã được gửi trong MessageService)
                 var message = await _messageService.SendMessageAsync(request.SenderId, request.ChatroomId, request.Message);
                 
-                // 2. Lấy thông tin người gửi
-                var sender = await _userService.GetUserByIdAsync(request.SenderId);
-                if (sender == null)
-                {
-                    return BadRequest("Sender not found.");
-                }
-
-                // 3. Tạo response object
+                // 2. Tạo response object using SenderName from the saved message
                 var messageResponse = new
                 {
                     MessageId = message.MessageId,
                     SenderId = message.SenderId,
-                    SenderUsername = sender.UserName,
-                    // SenderAvatar = sender.Avatar, // Nếu có trường avatar
+                    SenderUsername = message.SenderName, // Use SenderName from the message model
                     ChatroomId = message.ChatRoomId,
                     Content = message.Message,
                     CreatedAt = message.CreatedAt,
                     MessageType = "text"
                 };
 
-                // 4. Gửi tin nhắn qua SignalR đến tất cả users trong chatroom
+                // 3. Gửi tin nhắn qua SignalR đến tất cả users trong chatroom
                 await _hubContext.Clients.Group(request.ChatroomId.ToString())
                     .SendAsync("ReceiveMessage", messageResponse);
 
@@ -92,15 +84,27 @@ namespace Server_1_.Controllers
                 return NotFound(); // Trả về 404 Not Found nếu không tìm thấy
             }
             return Ok(message);
-        }
-
-        // GET /api/chatrooms/{chatroomId}/messages
+        }        // GET /api/chatrooms/{chatroomId}/messages
         [HttpGet("chatrooms/{chatroomId}")]
-        public async Task<ActionResult<IEnumerable<Messages>>> GetMessagesInChatroom(int chatroomId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<ActionResult<IEnumerable<object>>> GetMessagesInChatroom(int chatroomId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var messages = await _messageService.GetMessagesInChatroomAsync(chatroomId, page, pageSize);
-            return Ok(messages);
-        }        // PUT /api/messages/{id}
+            
+            // Return DTO to include SenderName and avoid potential circular references
+            var result = messages.Select(m => new
+            {
+                m.MessageId,
+                m.SenderId,
+                m.SenderName, // Include SenderName field
+                m.ChatRoomId,
+                Content = m.Message,
+                m.CreatedAt,
+                m.UpdatedAt,
+                m.IsDeleted
+            });
+            
+            return Ok(result);
+        }// PUT /api/messages/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> EditMessage(int id, EditMessageRequest request)
         {

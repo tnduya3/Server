@@ -12,8 +12,8 @@ using Server_1_.Data;
 namespace Server_1_.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250612151716_inital")]
-    partial class inital
+    [Migration("20250614175111_AddSenderNameToMessages")]
+    partial class AddSenderNameToMessages
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,11 +39,32 @@ namespace Server_1_.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CreatorUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DeletedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsGroup")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPrivate")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastActivity")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .HasColumnType("text");
@@ -51,7 +72,12 @@ namespace Server_1_.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer");
+
                     b.HasKey("ChatRoomId");
+
+                    b.HasIndex("CreatorUserId");
 
                     b.ToTable("Chatrooms");
                 });
@@ -132,6 +158,9 @@ namespace Server_1_.Migrations
                     b.Property<int>("SenderId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SenderName")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -195,20 +224,42 @@ namespace Server_1_.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("AddedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AddedByUserUserId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Id")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("LastSeen")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("LeftAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("RemovedBy")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RemovedByUserUserId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("ChatroomId", "UserId");
+
+                    b.HasIndex("AddedByUserUserId");
+
+                    b.HasIndex("RemovedByUserUserId");
 
                     b.HasIndex("UserId");
 
@@ -250,6 +301,15 @@ namespace Server_1_.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Server_1_.Models.ChatRooms", b =>
+                {
+                    b.HasOne("Server_1_.Models.Users", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatorUserId");
+
+                    b.Navigation("Creator");
                 });
 
             modelBuilder.Entity("Server_1_.Models.Friends", b =>
@@ -316,11 +376,19 @@ namespace Server_1_.Migrations
 
             modelBuilder.Entity("Server_1_.Models.Participants", b =>
                 {
+                    b.HasOne("Server_1_.Models.Users", "AddedByUser")
+                        .WithMany()
+                        .HasForeignKey("AddedByUserUserId");
+
                     b.HasOne("Server_1_.Models.ChatRooms", "Chatroom")
                         .WithMany("Participants")
                         .HasForeignKey("ChatroomId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Server_1_.Models.Users", "RemovedByUser")
+                        .WithMany()
+                        .HasForeignKey("RemovedByUserUserId");
 
                     b.HasOne("Server_1_.Models.Users", "User")
                         .WithMany()
@@ -328,7 +396,11 @@ namespace Server_1_.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("AddedByUser");
+
                     b.Navigation("Chatroom");
+
+                    b.Navigation("RemovedByUser");
 
                     b.Navigation("User");
                 });

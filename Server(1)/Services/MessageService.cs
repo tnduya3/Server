@@ -18,20 +18,23 @@ namespace Server_1_.Services
         {
             _context = context; // Khởi tạo DbContext  
             _firebaseNotificationService = firebaseNotificationService; // Correctly assign the injected service  
-        }
-
-        public async Task<Messages> SendMessageAsync(int senderId, int chatroomId, string content)
+        }        public async Task<Messages> SendMessageAsync(int senderId, int chatroomId, string content)
         {
+            // Get sender information to store username
+            var sender = await _context.Users.FindAsync(senderId);
+            
             var message = new Messages
             {
                 SenderId = senderId,
+                SenderName = sender?.UserName ?? "Unknown", // Store sender name in the message
                 ChatRoomId = chatroomId,
                 Message = content,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             _context.Messages.Add(message); // Thêm tin nhắn vào DbSet  
-            await _context.SaveChangesAsync(); // Lưu thay đổi vào cơ sở dữ liệu  
+            await _context.SaveChangesAsync(); // Lưu thay đổi vào cơ sở dữ liệu
 
             // Gửi thông báo FCM sau khi tin nhắn được lưu  
             var participants = await _context.Participants

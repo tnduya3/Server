@@ -11,6 +11,7 @@ namespace Server_1_.Models
         [ForeignKey("Users")]
         public int UserId { get; set; }
         public int SenderId { get; set; }
+        public string? SenderName { get; set; } // Optional: to store sender's name directly in the message
         
         [ForeignKey("ChatRooms")]
         public int ChatRoomId { get; set; }

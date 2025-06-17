@@ -548,8 +548,8 @@ namespace Server_1_.Services
                 _logger.LogError(ex, "Error unarchiving chatroom {ChatroomId}", chatroomId);
                 return false;
             }
-        }
-
+        }        
+        
         public async Task<List<ChatRooms>> GetArchivedChatroomsAsync(int userId)
         {
             return await _context.Participants
@@ -560,6 +560,111 @@ namespace Server_1_.Services
                 .Where(c => c != null && !c.IsDeleted && c.IsArchived)
                 .OrderByDescending(c => c.UpdatedAt)
                 .ToListAsync();
+        }
+
+        // Direct messaging with friends
+        public async Task<ChatRooms> CreateDirectChatroomWithFriendAsync(int userId, int friendId)
+        {
+            try
+            {
+                // Check if users are friends
+                var friendship = await _context.Friends
+                    .FirstOrDefaultAsync(f => 
+                        ((f.UserId == userId && f.FriendId == friendId) || 
+                         (f.UserId == friendId && f.FriendId == userId)) &&
+                        f.Status == Friends.FriendshipStatus.Accepted);
+
+                if (friendship == null)
+                {
+                    throw new InvalidOperationException("Users are not friends");
+                }
+
+                // Check if direct chatroom already exists
+                var existingChatroom = await GetExistingDirectChatroomAsync(userId, friendId);
+                if (existingChatroom != null)
+                {
+                    return existingChatroom;
+                }
+
+                // Get user details for chatroom name
+                var user = await _context.Users.FindAsync(userId);
+                var friend = await _context.Users.FindAsync(friendId);
+
+                if (user == null || friend == null)
+                {
+                    throw new InvalidOperationException("User or friend not found");
+                }
+
+                // Create direct chatroom
+                var chatroomName = $"Direct: {user.UserName} & {friend.UserName}";
+                var newChatroom = new ChatRooms
+                {
+                    Name = chatroomName,
+                    Description = $"Direct conversation between {user.UserName} and {friend.UserName}",
+                    CreatedBy = userId,
+                    IsGroup = false, // Direct chat is not a group
+                    IsPrivate = true, // Direct chats are private
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    LastActivity = DateTime.UtcNow
+                };
+
+                _context.Chatrooms.Add(newChatroom);
+                await _context.SaveChangesAsync();
+
+                // Add both users to the chatroom
+                await AddUserToChatroomAsync(newChatroom.ChatRoomId, userId, "member", userId);
+                await AddUserToChatroomAsync(newChatroom.ChatRoomId, friendId, "member", userId);
+
+                _logger.LogInformation("Direct chatroom created between users {UserId} and {FriendId}", userId, friendId);
+                return newChatroom;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating direct chatroom between users {UserId} and {FriendId}", userId, friendId);
+                throw;
+            }
+        }
+
+        public async Task<ChatRooms?> GetExistingDirectChatroomAsync(int userId, int friendId)
+        {
+            // Find chatrooms where both users are participants and it's a direct chat (IsGroup = false)
+            var chatroom = await _context.Participants
+                .Where(p => p.UserId == userId && p.IsActive)
+                .Include(p => p.Chatroom)
+                .ThenInclude(c => c.Participants)
+                .Select(p => p.Chatroom)
+                .Where(c => c != null && 
+                           !c.IsDeleted && 
+                           !c.IsGroup && // Direct chat
+                           c.Participants.Count == 2 && // Only 2 participants
+                           c.Participants.Any(p => p.UserId == friendId && p.IsActive))
+                .FirstOrDefaultAsync();
+
+            return chatroom;
+        }        public async Task<bool> CreateAndStartChatWithFriendAsync(int userId, int friendId, string? initialMessage = null)
+        {
+            try
+            {
+                // Create or get existing direct chatroom
+                var chatroom = await CreateDirectChatroomWithFriendAsync(userId, friendId);
+
+                // Send initial message if provided
+                if (!string.IsNullOrWhiteSpace(initialMessage))
+                {
+                    // We'll handle the initial message at the controller level
+                    // to avoid circular dependency issues
+                }
+
+                _logger.LogInformation("Started chat between users {UserId} and {FriendId} in chatroom {ChatroomId}", 
+                    userId, friendId, chatroom.ChatRoomId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error starting chat between users {UserId} and {FriendId}", userId, friendId);
+                return false;
+            }
         }
     }
 }

@@ -9,10 +9,17 @@ namespace Server_1_.Controllers
     public class FriendsController : ControllerBase
     {
         private readonly IFriendService _friendService;
+        private readonly IChatroomService _chatroomService;
+        private readonly IMessageService _messageService;
 
-        public FriendsController(IFriendService friendService)
+        public FriendsController(
+            IFriendService friendService, 
+            IChatroomService chatroomService,
+            IMessageService messageService)
         {
             _friendService = friendService;
+            _chatroomService = chatroomService;
+            _messageService = messageService;
         }
 
         [HttpPost("send-request")]
@@ -100,13 +107,132 @@ namespace Server_1_.Controllers
                 return Ok(new { status = status.Value.ToString() });
             
             return Ok(new { status = "None" });
-        }
-
+        }        
+        
         [HttpGet("{userId}/are-friends/{friendId}")]
         public async Task<IActionResult> AreFriends(int userId, int friendId)
         {
             var areFriends = await _friendService.AreFriendsAsync(userId, friendId);
             return Ok(new { areFriends });
         }
+
+        // New endpoints for direct messaging with friends
+        [HttpPost("{userId}/start-chat/{friendId}")]
+        public async Task<IActionResult> StartChatWithFriend(int userId, int friendId, [FromBody] StartChatRequest? request = null)
+        {
+            try
+            {
+                // Check if users are friends
+                var areFriends = await _friendService.AreFriendsAsync(userId, friendId);
+                if (!areFriends)
+                {
+                    return BadRequest(new { message = "You can only start chat with friends" });
+                }
+
+                // Create or get existing direct chatroom
+                var chatroom = await _chatroomService.CreateDirectChatroomWithFriendAsync(userId, friendId);
+
+                // Send initial message if provided
+                if (!string.IsNullOrWhiteSpace(request?.InitialMessage))
+                {
+                    var message = await _messageService.SendMessageAsync(userId, chatroom.ChatRoomId, request.InitialMessage);
+                }
+
+                // Return chatroom information
+                var result = new
+                {
+                    chatroom.ChatRoomId,
+                    chatroom.Name,
+                    chatroom.Description,
+                    chatroom.IsGroup,
+                    chatroom.IsPrivate,
+                    chatroom.CreatedAt,
+                    chatroom.LastActivity,
+                    Message = "Direct chat created successfully",
+                    HasInitialMessage = !string.IsNullOrWhiteSpace(request?.InitialMessage)
+                };
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+            }
+        }
+
+        [HttpGet("{userId}/direct-chats")]
+        public async Task<IActionResult> GetDirectChats(int userId)
+        {
+            try
+            {
+                // Get all direct chatrooms for the user
+                var userChatrooms = await _chatroomService.GetUserChatroomsAsync(userId);
+                var directChats = userChatrooms.Where(c => !c.IsGroup && !c.IsDeleted).ToList();
+
+                var result = directChats.Select(c => new
+                {
+                    c.ChatRoomId,
+                    c.Name,
+                    c.Description,
+                    c.IsGroup,
+                    c.IsPrivate,
+                    c.CreatedAt,
+                    c.LastActivity,
+                    c.UpdatedAt
+                });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+            }
+        }
+
+        [HttpGet("{userId}/check-direct-chat/{friendId}")]
+        public async Task<IActionResult> CheckExistingDirectChat(int userId, int friendId)
+        {
+            try
+            {
+                // Check if users are friends
+                var areFriends = await _friendService.AreFriendsAsync(userId, friendId);
+                if (!areFriends)
+                {
+                    return BadRequest(new { message = "You can only check chat with friends" });
+                }
+
+                // Check if direct chatroom exists
+                var existingChatroom = await _chatroomService.GetExistingDirectChatroomAsync(userId, friendId);
+
+                if (existingChatroom != null)
+                {
+                    var result = new
+                    {
+                        Exists = true,
+                        ChatroomId = existingChatroom.ChatRoomId,
+                        existingChatroom.Name,
+                        existingChatroom.Description,
+                        existingChatroom.LastActivity
+                    };
+                    return Ok(result);
+                }
+
+                return Ok(new { Exists = false });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+            }
+        }
+    }
+
+    // DTOs for the new endpoints
+    public class StartChatRequest
+    {
+        public string? InitialMessage { get; set; }
     }
 }

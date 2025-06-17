@@ -39,12 +39,15 @@ namespace Server_1_.Services
         // Statistics & Analytics
         Task<ChatroomStats> GetChatroomStatsAsync(int chatroomId);
         Task<DateTime?> GetLastActivityAsync(int chatroomId);
-        Task<int> GetMessageCountAsync(int chatroomId);
-
-        // Advanced features
+        Task<int> GetMessageCountAsync(int chatroomId);        // Advanced features
         Task<bool> ArchiveChatroomAsync(int chatroomId, int archivedBy);
         Task<bool> UnarchiveChatroomAsync(int chatroomId, int unarchivedBy);
         Task<List<ChatRooms>> GetArchivedChatroomsAsync(int userId);
+        
+        // Direct messaging with friends
+        Task<ChatRooms> CreateDirectChatroomWithFriendAsync(int userId, int friendId);
+        Task<ChatRooms?> GetExistingDirectChatroomAsync(int userId, int friendId);
+        Task<bool> CreateAndStartChatWithFriendAsync(int userId, int friendId, string? initialMessage = null);
     }
 
     // DTOs for enhanced functionality

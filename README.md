@@ -156,38 +156,6 @@ await connection.InvokeAsync("SendMessage", 1, 1, "Hello from C#!");
 1. Sử dụng Postman gửi POST request đến `/api/messages`
 2. Users trong chatroom sẽ nhận tin nhắn real-time qua SignalR
 
-## Troubleshooting
-
-### Lỗi kết nối CORS
-Đảm bảo origin của client được thêm vào CORS policy trong `Program.cs`
-
-### Lỗi SSL certificate
-Chạy lệnh để trust dev certificate:
-```bash
-dotnet dev-certs https --trust
-```
-
-### Database connection issues
-Kiểm tra connection string trong `appsettings.json`
-
-### SignalR connection fails
-1. Kiểm tra server có chạy không
-2. Kiểm tra URL hub (`/chathub`)
-3. Kiểm tra browser console để xem lỗi chi tiết
-
-## Monitoring & Debugging
-
-### Logs
-Server sẽ in ra console:
-- Khi client connect/disconnect
-- Khi có lỗi xảy ra
-- Khi user join/leave chatroom
-
-### Browser DevTools
-Mở F12 → Console để xem:
-- SignalR connection status
-- Messages được gửi/nhận
-- Errors nếu có
 
 ## Mở rộng thêm
 

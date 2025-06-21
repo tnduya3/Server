@@ -57,14 +57,17 @@ namespace Server_1_.Hubs
                 // 3. Gửi tin nhắn đến tất cả các client trong nhóm (chatroom) cụ thể
                 await Clients.Group(chatroomId.ToString()).SendAsync("ReceiveMessage", messageResponse);
 
-                // 4. Gửi thông báo đã gửi thành công cho người gửi
+                // 4. Gửi notification đến các members trong chatroom (trừ sender)
+                await SendChatroomNotification(chatroomId, senderId, message.SenderName ?? "Unknown", messageContent, message.MessageId);
+
+                // 5. Gửi thông báo đã gửi thành công cho người gửi
                 await Clients.Caller.SendAsync("MessageSent", new { 
                     MessageId = message.MessageId, 
                     Status = "success",
                     FirebaseNotificationSent = true // Xác nhận Firebase notification đã được gửi
                 });
 
-                // 5. Log thành công
+                // 6. Log thành công
                 Console.WriteLine($"Message sent via SignalR - ID: {message.MessageId}, SenderName: {message.SenderName}, Firebase notifications sent");
             }
             catch (Exception ex)
@@ -294,6 +297,102 @@ namespace Server_1_.Hubs
                 Details = details,
                 Timestamp = DateTime.UtcNow
             });
+        }
+
+        // Phương thức gửi thông báo khi user nhận được tin nhắn
+        public async Task SendNotificationToUser(int recipientUserId, int senderId, string senderName, int chatroomId, string messageContent, int messageId)
+        {
+            try
+            {
+                // Tạo notification data
+                var notificationData = new
+                {
+                    Type = "new_message",
+                    MessageId = messageId,
+                    SenderId = senderId,
+                    SenderName = senderName,
+                    ChatroomId = chatroomId,
+                    Content = messageContent.Length > 50 ? messageContent.Substring(0, 50) + "..." : messageContent,
+                    FullContent = messageContent,
+                    Timestamp = DateTime.UtcNow,
+                    Title = $"New message from {senderName}",
+                    Body = messageContent
+                };
+
+                // Gửi notification đến user cụ thể (nếu họ đang online)
+                var recipientConnectionId = ConnectedUsers.FirstOrDefault(x => x.Value == recipientUserId.ToString()).Key;
+                
+                if (!string.IsNullOrEmpty(recipientConnectionId))
+                {
+                    // User đang online, gửi notification qua SignalR
+                    await Clients.Client(recipientConnectionId).SendAsync("ReceiveNotification", notificationData);
+                    
+                    Console.WriteLine($"Notification sent to online user {recipientUserId} for message {messageId}");
+                }
+                else
+                {
+                    // User offline, có thể lưu notification để gửi sau hoặc dùng push notification
+                    Console.WriteLine($"User {recipientUserId} is offline, notification not sent via SignalR");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending notification to user {recipientUserId}: {ex.Message}");
+            }
+        }
+
+        // Phương thức để gửi notification broadcast cho tất cả members trong chatroom (trừ sender)
+        public async Task SendChatroomNotification(int chatroomId, int senderId, string senderName, string messageContent, int messageId)
+        {
+            try
+            {
+                var notificationData = new
+                {
+                    Type = "chatroom_message",
+                    MessageId = messageId,
+                    SenderId = senderId,
+                    SenderName = senderName,
+                    ChatroomId = chatroomId,
+                    Content = messageContent.Length > 50 ? messageContent.Substring(0, 50) + "..." : messageContent,
+                    Timestamp = DateTime.UtcNow,
+                    Title = $"New message in chatroom",
+                    Body = $"{senderName}: {messageContent}"
+                };
+
+                // Gửi notification đến tất cả members trong chatroom trừ sender
+                await Clients.GroupExcept(chatroomId.ToString(), 
+                    ConnectedUsers.Where(x => x.Value == senderId.ToString()).Select(x => x.Key).ToList())
+                    .SendAsync("ReceiveNotification", notificationData);
+                
+                Console.WriteLine($"Chatroom notification sent for message {messageId} in room {chatroomId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending chatroom notification: {ex.Message}");
+            }
+        }
+
+        // Phương thức để mark notification đã đọc
+        public async Task MarkNotificationAsRead(int notificationId, int userId)
+        {
+            try
+            {
+                // Logic để mark notification đã đọc (có thể lưu vào database)
+                
+                // Thông báo cho client rằng notification đã được đánh dấu đọc
+                await Clients.Caller.SendAsync("NotificationMarkedAsRead", new
+                {
+                    NotificationId = notificationId,
+                    UserId = userId,
+                    MarkedAt = DateTime.UtcNow
+                });
+                
+                Console.WriteLine($"Notification {notificationId} marked as read by user {userId}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error marking notification as read: {ex.Message}");
+            }
         }
     }
 }

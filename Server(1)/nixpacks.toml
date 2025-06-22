@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ['dotnet-sdk_8']
+
+[phases.build]
+cmds = [
+  'dotnet restore',
+  'dotnet build -c Release',
+  'dotnet publish -c Release -o /app/publish'
+]
+
+[phases.start]
+cmd = 'cd /app/publish && dotnet Server(1).dll'

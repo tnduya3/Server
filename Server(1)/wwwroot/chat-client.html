@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Chat Demo</title>
+    <title>Real-time Chat Demo với SignalR & Firebase</title>
     <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
     <style>
         body {
@@ -156,18 +156,32 @@
         .online-users {
             margin-top: 20px;
         }
-        
-        .user-list {
+          .user-list {
             background: #f8f9fa;
             padding: 10px;
             border-radius: 4px;
             max-height: 150px;
             overflow-y: auto;
         }
+        
+        .test-functions {
+            margin-top: 20px;
+        }
+        
+        .test-functions button {
+            font-size: 12px;
+            padding: 8px;
+        }
+        
+        .message.system {
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            color: #495057;
+        }
     </style>
 </head>
 <body>
-    <h1>🚀 Real-time Chat Demo với SignalR</h1>
+    <h1>🚀 Real-time Chat Demo với SignalR & Firebase</h1>
     
     <div class="chat-container">
         <!-- Panel kết nối -->
@@ -205,12 +219,20 @@
                 <button onclick="joinRoom()" disabled id="joinRoomBtn">Tham gia phòng</button>
                 <button onclick="leaveRoom()" disabled id="leaveRoomBtn">Rời phòng</button>
             </div>
-            
-            <div class="online-users">
+              <div class="online-users">
                 <h4>Users Online:</h4>
                 <div id="onlineUsersList" class="user-list">
                     Chưa có ai online
                 </div>
+            </div>
+
+            <div class="test-functions">
+                <h4>Test Functions:</h4>
+                <button onclick="testPing()" style="width: 100%; margin-bottom: 5px;">Ping Server</button>
+                <button onclick="testTypingMethod()" style="width: 100%; margin-bottom: 5px;">Test Typing Method</button>
+                <button onclick="testSendTyping()" style="width: 100%; margin-bottom: 5px;">Test SendTyping</button>
+                <button onclick="markMessageAsRead()" style="width: 100%; margin-bottom: 5px;">Mark Last Message Read</button>
+                <button onclick="getOnlineUsers()" style="width: 100%;">Get Online Users</button>
             </div>
         </div>
         
@@ -241,7 +263,7 @@
 
     <script>
         let connection = null;
-        let currentUserId = null;
+        let currentUserId;
         let currentChatroomId = null;
         let isTyping = false;
         let typingTimeout = null;
@@ -360,22 +382,36 @@
                     parseInt(currentChatroomId), 
                     message
                 );
+
+                // await connection.invoke("SendTyping", parseInt(currentUserId), parseInt(currentChatroomId), document.getElementById('username').value);
+                // addMessage(document.getElementById('username').value, message, 'sent');
+                console.log('Tin nhắn đã gửi:', message);
                 
                 messageInput.value = '';
-                stopTyping();
                 
             } catch (err) {
                 console.error('Lỗi gửi tin nhắn:', err);
                 addMessage('System', 'Lỗi gửi tin nhắn: ' + err.message, 'error');
             }
-        }
-
+        }        
+        
         // Xử lý typing
         function handleTyping() {
+            console.log('handleTyping called, isTyping:', isTyping, 'connection:', !!connection, 'currentChatroomId:', currentChatroomId);
+            
             if (!isTyping && connection && currentChatroomId) {
                 isTyping = true;
                 const username = document.getElementById('username').value;
-                connection.invoke("SendTyping", parseInt(currentUserId), parseInt(currentChatroomId), username);
+                console.log('Sending typing indicator for user:', username, 'userId:', currentUserId, 'chatroomId:', currentChatroomId);
+                
+                connection.invoke("SendTyping", parseInt(currentUserId), parseInt(currentChatroomId), username)
+                    .then(() => {
+                        console.log('SendTyping successfully invoked');
+                    })
+                    .catch(err => {
+                        console.error('Error sending typing indicator:', err);
+                        addMessage('System', 'Error sending typing: ' + err.message, 'error');
+                    });
             }
             
             clearTimeout(typingTimeout);
@@ -383,48 +419,87 @@
         }
 
         function stopTyping() {
+            console.log('stopTyping called, isTyping:', isTyping, 'connection:', !!connection, 'currentChatroomId:', currentChatroomId);
+            
             if (isTyping && connection && currentChatroomId) {
                 isTyping = false;
-                connection.invoke("StopTyping", parseInt(currentUserId), parseInt(currentChatroomId));
+                console.log('Sending stop typing indicator for userId:', currentUserId, 'chatroomId:', currentChatroomId);
+                
+                connection.invoke("StopTyping", parseInt(currentUserId), parseInt(currentChatroomId))
+                    .then(() => {
+                        console.log('StopTyping successfully invoked');
+                    })
+                    .catch(err => {
+                        console.error('Error sending stop typing indicator:', err);
+                        addMessage('System', 'Error stopping typing: ' + err.message, 'error');
+                    });
             }
         }
 
         // Setup event handlers cho SignalR
-        function setupEventHandlers() {
+        function setupEventHandlers() {            
+            
             // Nhận tin nhắn
             connection.on("ReceiveMessage", function (messageData) {
-                const isOwn = messageData.SenderId == currentUserId;
+                const isOwn = messageData.senderId == currentUserId;
                 addMessage(
-                    messageData.SenderUsername, 
-                    messageData.Content, 
+                    messageData.senderName, 
+                    messageData.content, 
                     isOwn ? 'sent' : 'received',
                     messageData.CreatedAt
                 );
+                
+                // Lưu ID tin nhắn cuối cùng để test mark as read
+                lastMessageId = messageData.MessageId;
+            });
+
+            connection.on("ReceiveChatroomUsers", function (users) {
+                const userList = document.getElementById('onlineUsersList');
+                userList.innerHTML = ''; // Clear current list
+                
+                if (users.length === 0) {
+                    userList.textContent = 'Chưa có ai online';
+                    return;
+                }
+                
+                users.forEach(user => {
+                    const userItem = document.createElement('div');
+                    userItem.textContent = `${user.UserId} - ${user.Username}`;
+                    userList.appendChild(userItem);
+                });
+            });
+
+            connection.on("ReceiveNotification", function (notification) {
+                // addMessage('System', notification.Message, 'system');
             });
 
             // Thông báo kết nối thành công
             connection.on("Connected", function (data) {
-                addMessage('System', `Kết nối thành công! Connection ID: ${data.ConnectionId}`, 'system');
+                addMessage('System', `Kết nối thành công! Connection ID: ${data.Message}`, 'system');
             });
 
             // Xác nhận tham gia phòng
             connection.on("JoinConfirmation", function (data) {
-                addMessage('System', data.Message, 'system');
+                // addMessage('System', data.Message, 'system');
+            });            
+            
+            // Xác nhận rời phòng
+            connection.on("LeaveConfirmation", function (data) {
+                // addMessage('System', data.Message, 'system');
             });
 
             // User tham gia phòng
             connection.on("UserJoinedChatroom", function (data) {
-                addMessage('System', `${data.Username} đã tham gia phòng chat`, 'system');
+                addMessage('System', `${data.userId} đã tham gia phòng chat`, 'system');
             });
 
             // User rời phòng
             connection.on("UserLeftChatroom", function (data) {
                 addMessage('System', `${data.Username} đã rời phòng chat`, 'system');
-            });
-
+            });            
             // Typing indicators
             connection.on("UserTyping", function (data) {
-                showTypingIndicator(`${data.SenderName} đang nhập...`);
+                showTypingIndicator(`${data.senderName} đang nhập...`);
             });
 
             connection.on("UserStoppedTyping", function (data) {
@@ -453,15 +528,38 @@
 
             connection.on("UserOffline", function (userId) {
                 console.log(`User ${userId} đã offline`);
+            });            
+
+            // Message read receipts
+            connection.on("MessageRead", function (data) {
+                console.log(`Tin nhắn #${data.MessageId} đã được đọc bởi User ${data.ReadBy}`);
             });
 
-            // Xác nhận tin nhắn đã gửi
-            connection.on("MessageSent", function (data) {
-                if (data.Status === 'success') {
-                    console.log('Tin nhắn đã gửi thành công');
+            // Broadcast notifications
+            connection.on("BroadcastNotification", function (data) {
+                addMessage('📢 Thông báo', data.Body, 'system');
+            });            // Ping/Pong for connection health
+            connection.on("Pong", function (timestamp) {
+                console.log('Pong received at:', timestamp);
+                addMessage('System', `Pong received at ${new Date(timestamp).toLocaleTimeString()}`, 'system');
+            });
+
+            // Online users in chatroom response
+            connection.on("OnlineUsersInChatroom", function (data) {
+                const userList = document.getElementById('onlineUsersList');
+                userList.innerHTML = '';
+                
+                if (data.OnlineUsers.length === 0) {
+                    userList.textContent = 'Chưa có ai online';
                 } else {
-                    addMessage('System', `Lỗi gửi tin nhắn: ${data.Error}`, 'error');
+                    data.OnlineUsers.forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.textContent = `${user.UserId} - ${user.Username}`;
+                        userList.appendChild(userItem);
+                    });
                 }
+                
+                addMessage('System', `${data.Count} users online in chatroom`, 'system');
             });
         }
 
@@ -515,8 +613,8 @@
 
         function hideTypingIndicator() {
             document.getElementById('typingIndicator').style.display = 'none';
-        }
-
+        }        
+        
         // Event listeners
         document.getElementById('messageInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -525,7 +623,80 @@
                 handleTyping();
             }
         });
+        
+        // Thêm event listener cho input để bắt typing
+        document.getElementById('messageInput').addEventListener('input', function(e) {
+            handleTyping();
+        });
 
+        // Test functions
+        async function testPing() {
+            if (connection) {
+                try {
+                    await connection.invoke("Ping");
+                    addMessage('System', 'Ping sent to server', 'system');
+                } catch (err) {
+                    addMessage('System', 'Ping failed: ' + err.message, 'error');
+                }
+            }
+        }
+
+        let lastMessageId = null;
+        async function markMessageAsRead() {
+            if (connection && currentChatroomId && lastMessageId) {
+                try {
+                    await connection.invoke("MarkMessageAsRead", lastMessageId, parseInt(currentUserId), parseInt(currentChatroomId));
+                    addMessage('System', `Marked message #${lastMessageId} as read`, 'system');
+                } catch (err) {
+                    addMessage('System', 'Mark as read failed: ' + err.message, 'error');
+                }
+            } else {
+                addMessage('System', 'No message to mark as read', 'system');
+            }
+        }
+
+        async function getOnlineUsers() {
+            if (connection && currentChatroomId) {
+                try {
+                    await connection.invoke("GetOnlineUsersInChatroom", currentChatroomId);
+                    addMessage('System', 'Requested online users list', 'system');
+                } catch (err) {
+                    addMessage('System', 'Get online users failed: ' + err.message, 'error');
+                }
+            }
+        }
+
+        // Test functions cho typing
+        async function testTypingMethod() {
+            if (connection) {
+                try {
+                    await connection.invoke("TestTyping");
+                    addMessage('System', 'TestTyping method called', 'system');
+                } catch (err) {
+                    addMessage('System', 'TestTyping failed: ' + err.message, 'error');
+                }
+            } else {
+                addMessage('System', 'Not connected', 'error');
+            }
+        }
+
+        async function testSendTyping() {
+            if (connection && currentChatroomId) {
+                try {
+                    const username = document.getElementById('username').value;
+                    console.log('Testing SendTyping with params:', parseInt(currentUserId), parseInt(currentChatroomId), username);
+                    
+                    await connection.invoke("SendTyping", parseInt(currentUserId), parseInt(currentChatroomId), username);
+                    addMessage('System', 'SendTyping test called successfully', 'system');
+                } catch (err) {
+                    console.error('SendTyping test error:', err);
+                    addMessage('System', 'SendTyping test failed: ' + err.message, 'error');
+                }
+            } else {
+                addMessage('System', 'Not connected or not in chatroom', 'error');
+            }
+        }
+        
         // Tự động kết nối khi trang load (để demo)
         window.addEventListener('load', function() {
             // Uncomment dòng dưới để tự động kết nối

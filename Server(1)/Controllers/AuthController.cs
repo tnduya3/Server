@@ -76,12 +76,14 @@ namespace Server_1_.Controllers
                     RefreshToken = authResult.RefreshToken,
                     UserId = user?.UserId.ToString(),
                     Email = authResult.Email,
+                    Avatar = authResult.Avatar ?? user?.Avatar, // Ưu tiên avatar từ AuthResult, fallback từ user
                     ExpiresAt = expiresAt,
                     User = user != null ? new UserInfo
                     {
                         UserId = user.UserId.ToString(),
                         Email = user.Email ?? string.Empty,
                         DisplayName = user.UserName,
+                        Avatar = user.Avatar,
                         EmailVerified = true, // Firebase handles email verification
                         CreatedAt = user.CreatedAt,
                         LastSignInAt = DateTime.UtcNow
@@ -185,12 +187,14 @@ namespace Server_1_.Controllers
                     RefreshToken = authResult.RefreshToken,
                     UserId = createdUser.UserId.ToString(),
                     Email = authResult.Email,
+                    Avatar = authResult.Avatar ?? createdUser.Avatar, // Người dùng mới sẽ có avatar = null
                     ExpiresAt = expiresAt,
                     User = new UserInfo
                     {
                         UserId = createdUser.UserId.ToString(),
                         Email = createdUser.Email ?? string.Empty,
                         DisplayName = createdUser.UserName,
+                        Avatar = createdUser.Avatar, // null cho người dùng mới
                         EmailVerified = false, // May need email verification
                         CreatedAt = createdUser.CreatedAt,
                         LastSignInAt = DateTime.UtcNow
@@ -330,6 +334,7 @@ namespace Server_1_.Controllers
                     AccessToken = authResult.IdToken,
                     RefreshToken = authResult.RefreshToken,
                     UserId = authResult.UserId,
+                    Avatar = authResult.Avatar,
                     ExpiresAt = expiresAt
                 };
 
@@ -387,11 +392,13 @@ namespace Server_1_.Controllers
                     Message = "Token is valid",
                     UserId = authResult.UserId,
                     Email = authResult.Email,
+                    Avatar = authResult.Avatar ?? user?.Avatar, // Ưu tiên avatar từ AuthResult
                     User = user != null ? new UserInfo
                     {
                         UserId = user.UserId.ToString(),
                         Email = user.Email ?? string.Empty,
                         DisplayName = user.UserName,
+                        Avatar = user.Avatar,
                         EmailVerified = true,
                         CreatedAt = user.CreatedAt,
                         LastSignInAt = DateTime.UtcNow

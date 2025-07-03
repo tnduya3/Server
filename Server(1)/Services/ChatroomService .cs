@@ -8,7 +8,8 @@ using Server_1_.Models;
 using Server_1_.Data;
 
 namespace Server_1_.Services
-{    // Class triển khai IChatroomService
+{    
+    // Class triển khai IChatroomService
     public class ChatroomService : IChatroomService
     {
         private readonly AppDbContext _context;
@@ -18,7 +19,9 @@ namespace Server_1_.Services
         {
             _context = context;
             _logger = logger;
-        }        // Basic CRUD operations
+        }        
+        
+        // Basic CRUD operations
         public async Task<ChatRooms> CreateChatroomAsync(string name, int createdBy, bool isGroup = true, string? description = null)
         {
             try
@@ -639,10 +642,10 @@ namespace Server_1_.Services
                            !c.IsGroup && // Direct chat
                            c.Participants.Count == 2 && // Only 2 participants
                            c.Participants.Any(p => p.UserId == friendId && p.IsActive))
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync();            return chatroom;
+        }
 
-            return chatroom;
-        }        public async Task<bool> CreateAndStartChatWithFriendAsync(int userId, int friendId, string? initialMessage = null)
+        public async Task<bool> CreateAndStartChatWithFriendAsync(int userId, int friendId, string? initialMessage = null)
         {
             try
             {

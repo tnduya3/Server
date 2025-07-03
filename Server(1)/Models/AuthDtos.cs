@@ -51,6 +51,7 @@ namespace Server_1_.Models
         public string? RefreshToken { get; set; }
         public string? UserId { get; set; }
         public string? Email { get; set; }
+        public string? Avatar { get; set; }
         public DateTime? ExpiresAt { get; set; }
         public UserInfo? User { get; set; }
     }
@@ -60,6 +61,7 @@ namespace Server_1_.Models
         public string UserId { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string? DisplayName { get; set; }
+        public string? Avatar { get; set; }
         public bool EmailVerified { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? LastSignInAt { get; set; }

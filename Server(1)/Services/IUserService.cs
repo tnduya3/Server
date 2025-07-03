@@ -18,6 +18,7 @@ namespace Server_1_.Services
         Task<bool> UpdateUserAsync(int id, string newUsername); //Thêm các tham số cần thiết
         Task<bool> DeleteUserAsync(int id);
         Task<bool> UpdateDeviceTokenAsync(int userId, string deviceToken);
+        Task<bool> UpdateUserAvatarAsync(int userId, string avatar);
         // Các phương thức khác liên quan đến người dùng
     }
 }

@@ -83,6 +83,19 @@ namespace Server_1_.Services
             return true;
         }
 
+        public async Task<bool> UpdateUserAvatarAsync(int userId, string avatar)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return false;
+            }
+            user.Avatar = avatar;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<bool> DeleteUserAsync(int id)
         {
             var user = await _context.Users.FindAsync(id);

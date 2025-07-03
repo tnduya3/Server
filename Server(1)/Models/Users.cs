@@ -13,6 +13,7 @@ namespace Server_1_.Models
         public bool IsOnline { get; set; }
         public bool IsActive { get; set; } = true;
         public string? DeviceToken { get; set; } // Thêm dòng này
+        public string? Avatar { get; set; } // URL hoặc đường dẫn tới avatar
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 

@@ -17,13 +17,15 @@ namespace Server_1_.Services
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
         private readonly ILogger<FirebaseAuthService> _logger;
+        private readonly IUserService _userService;
         private readonly string _apiKey;
 
-        public FirebaseAuthService(HttpClient httpClient, IConfiguration configuration, ILogger<FirebaseAuthService> logger)
+        public FirebaseAuthService(HttpClient httpClient, IConfiguration configuration, ILogger<FirebaseAuthService> logger, IUserService userService)
         {
             _httpClient = httpClient;
             _configuration = configuration;
             _logger = logger;
+            _userService = userService;
             _apiKey = Environment.GetEnvironmentVariable("FIREBASE_API_KEY") ?? _configuration["Firebase:ApiKey"] ?? "";
 
             InitializeFirebaseApp();
@@ -92,6 +94,18 @@ namespace Server_1_.Services
                     
                     _logger.LogInformation("User signed in successfully: {Email}", email);
                     
+                    // Lấy thông tin avatar từ database
+                    string? avatar = null;
+                    try
+                    {
+                        var user = await _userService.GetUserByEmailAsync(email);
+                        avatar = user?.Avatar;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get user avatar for email: {Email}", email);
+                    }
+                    
                     return new AuthResult
                     {
                         Success = true,
@@ -100,6 +114,7 @@ namespace Server_1_.Services
                         RefreshToken = jsonResponse.refreshToken,
                         UserId = jsonResponse.localId,
                         Email = jsonResponse.email,
+                        Avatar = avatar,
                         Data = jsonResponse
                     };
                 }
@@ -162,6 +177,8 @@ namespace Server_1_.Services
                     
                     _logger.LogInformation("User signed up successfully: {Email}", email);
                     
+                    // Người dùng mới sẽ không có avatar
+                    
                     return new AuthResult
                     {
                         Success = true,
@@ -170,6 +187,7 @@ namespace Server_1_.Services
                         RefreshToken = jsonResponse.refreshToken,
                         UserId = jsonResponse.localId,
                         Email = jsonResponse.email,
+                        Avatar = null, // Người dùng mới chưa có avatar
                         Data = jsonResponse
                     };
                 }
@@ -324,12 +342,29 @@ namespace Server_1_.Services
                 
                 _logger.LogInformation("Token verified successfully for user: {UserId}", decodedToken.Uid);
                 
+                // Lấy thông tin avatar từ database
+                string? avatar = null;
+                string? email = decodedToken.Claims.TryGetValue("email", out var emailClaim) ? emailClaim.ToString() : null;
+                try
+                {
+                    if (!string.IsNullOrEmpty(email))
+                    {
+                        var user = await _userService.GetUserByEmailAsync(email);
+                        avatar = user?.Avatar;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get user avatar for email: {Email}", email);
+                }
+                
                 return new AuthResult
                 {
                     Success = true,
                     Message = "Token verified successfully",
                     UserId = decodedToken.Uid,
-                    Email = decodedToken.Claims.TryGetValue("email", out var email) ? email.ToString() : null,
+                    Email = email,
+                    Avatar = avatar,
                     Data = decodedToken.Claims
                 };
             }
@@ -377,6 +412,21 @@ namespace Server_1_.Services
                     
                     _logger.LogInformation("Token refreshed successfully");
                     
+                    // Lấy thông tin avatar từ database nếu có userId
+                    string? avatar = null;
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(jsonResponse.user_id?.ToString()))
+                        {
+                            // Thử tìm user theo Firebase UID (có thể cần mapping table trong tương lai)
+                            // Hiện tại sẽ để null vì không có email trong refresh response
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to get user avatar during token refresh");
+                    }
+                    
                     return new AuthResult
                     {
                         Success = true,
@@ -384,6 +434,7 @@ namespace Server_1_.Services
                         IdToken = jsonResponse.id_token,
                         RefreshToken = jsonResponse.refresh_token,
                         UserId = jsonResponse.user_id,
+                        Avatar = avatar,
                         Data = jsonResponse
                     };
                 }

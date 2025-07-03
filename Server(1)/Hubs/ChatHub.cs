@@ -33,7 +33,9 @@ namespace Server_1_.Hubs
             
             // Thông báo cho tất cả friends rằng user này đã online
             await Clients.All.SendAsync("UserOnline", userId);
-        }        // Phương thức mà client có thể gọi để gửi tin nhắn
+        }        
+        
+        // Phương thức mà client có thể gọi để gửi tin nhắn
         public async Task SendMessage(int senderId, int chatroomId, string messageContent)
         {
             try
@@ -85,22 +87,42 @@ namespace Server_1_.Hubs
         // Phương thức gửi tin nhắn typing indicator
         public async Task SendTyping(int senderId, int chatroomId, string senderName)
         {
-            await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("UserTyping", new
+            try
             {
-                SenderId = senderId,
-                SenderName = senderName,
-                ChatroomId = chatroomId
-            });
+                await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("UserTyping", new
+                {
+                    SenderId = senderId,
+                    ChatroomId = chatroomId,
+                    SenderName = senderName,
+                    Timestamp = DateTime.UtcNow
+                });
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending typing indicator: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", $"Failed to send typing indicator: {ex.Message}");
+            }
         }
 
         // Phương thức ngừng typing
         public async Task StopTyping(int senderId, int chatroomId)
         {
-            await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("UserStoppedTyping", new
+            try
             {
-                SenderId = senderId,
-                ChatroomId = chatroomId
-            });
+                await Clients.OthersInGroup(chatroomId.ToString()).SendAsync("UserStoppedTyping", new
+                {
+                    SenderId = senderId,
+                    ChatroomId = chatroomId,
+                    Timestamp = DateTime.UtcNow
+                });
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending stop typing indicator: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", $"Failed to send stop typing indicator: {ex.Message}");
+            }
         }
 
         // Phương thức đánh dấu tin nhắn đã đọc
@@ -169,7 +191,7 @@ namespace Server_1_.Hubs
         }
 
         // Phương thức mà client có thể gọi để rời một phòng chat
-        public async Task LeaveChatroom(string chatroomId, string userId = null)
+        public async Task LeaveChatroom(string chatroomId, string? userId = null)
         {
             try
             {
@@ -225,7 +247,9 @@ namespace Server_1_.Hubs
                 OnlineUsers = onlineUsers,
                 Count = onlineUsers.Count
             });
-        }        // Các phương thức life-cycle của Hub
+        }        
+        
+        // Các phương thức life-cycle của Hub
         public override async Task OnConnectedAsync()
         {
             // Xử lý khi một client kết nối đến Hub
@@ -392,6 +416,20 @@ namespace Server_1_.Hubs
             catch (Exception ex)
             {
                 Console.WriteLine($"Error marking notification as read: {ex.Message}");
+            }
+        }
+
+        // Phương thức để test typing trực tiếp
+        public async Task TestTyping()
+        {
+            try
+            {
+                Console.WriteLine("TestTyping method called!");
+                await Clients.Caller.SendAsync("ReceiveError", "TestTyping method successfully called!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in TestTyping: {ex.Message}");
             }
         }
     }

@@ -31,12 +31,11 @@ namespace Server_1_.Services
                     FirebaseApp.Create(new AppOptions()
                     {
                         Credential = GoogleCredential.FromStream(stream)
-                    });
-                }
+                    });                }
             }
         }
 
-        public async Task<string> SendNotificationToDeviceAsync(string deviceToken, string title, string body, Dictionary<string, string> data = null)
+        public async Task<string> SendNotificationToDeviceAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null)
         {
             var message = new Message()
             {
@@ -54,7 +53,7 @@ namespace Server_1_.Services
             return response; // Response chứa MessageId
         }
 
-        public async Task<string> SendNotificationToTopicAsync(string topic, string title, string body, Dictionary<string, string> data = null)
+        public async Task<string> SendNotificationToTopicAsync(string topic, string title, string body, Dictionary<string, string>? data = null)
         {
             var message = new Message()
             {

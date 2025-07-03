@@ -108,6 +108,48 @@ namespace Server_1_.Controllers
             return NoContent();
         }
 
+        // GET /api/users/{id}/avatar
+        [HttpGet("{id}/avatar")]
+        public async Task<ActionResult<string>> GetUserAvatar(int id)
+        {
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            if (string.IsNullOrEmpty(user.Avatar))
+            {
+                return Ok(new { avatar = (string?)null, message = "No avatar set" });
+            }
+
+            return Ok(new { avatar = user.Avatar });
+        }
+
+        // POST /api/users/{id}/avatar
+        [HttpPost("{id}/avatar")]
+        public async Task<IActionResult> UpdateUserAvatar(int id, [FromBody] UpdateAvatarRequest request)
+        {
+            if (string.IsNullOrEmpty(request.Avatar))
+            {
+                return BadRequest("Avatar URL cannot be empty");
+            }
+
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var result = await _userService.UpdateUserAvatarAsync(id, request.Avatar);
+            if (!result)
+            {
+                return BadRequest("Failed to update avatar");
+            }
+
+            return Ok(new { message = "Avatar updated successfully", avatar = request.Avatar });
+        }
+
         // DTO cho các request
         public class RegisterRequest
         {
@@ -123,6 +165,12 @@ namespace Server_1_.Controllers
             public int Id { get; set; }
             [Required]
             public required string Username { get; set; }
+        }
+
+        public class UpdateAvatarRequest
+        {
+            [Required]
+            public required string Avatar { get; set; }
         }
     }
 }

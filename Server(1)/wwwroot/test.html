@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCM Test Client</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #output {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 100px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+
+        input[type="text"] {
+            width: 300px;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Firebase Cloud Messaging Test Client</h1>
+
+    <p>1. Get FCM Device Token:</p>
+    <button id="getTokenButton">Get Token</button>
+    <p>Your Device Token: <span id="tokenOutput" style="font-weight: bold; color: blue;">N/A</span></p>
+
+    <p>2. Send Token to Backend:</p>
+    <label for="userId">User ID:</label>
+    <input type="text" id="userId" value="1" placeholder="Enter User ID">
+    <button id="sendTokenButton">Send Token to Server</button>
+
+    <h2>Logs:</h2>
+    <div id="output"></div>
+
+    <script>
+        // Thay thế bằng cấu hình Firebase của dự án của bạn (TỪ BƯỚC 1)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDqqWydbjAABHPTuAwKXZq41fz84uBuwkg",
+            authDomain: "realtimechatapplicationg10.firebaseapp.com",
+            projectId: "realtimechatapplicationg10",
+            storageBucket: "realtimechatapplicationg10.firebasestorage.app",
+            messagingSenderId: "844254149589",
+            appId: "1:844254149589:web:284c832477f9c16f1edb5c",
+            measurementId: "G-RV9BS7DFF0"
+        };
+
+        // URL API của backend của bạn (thay thế bằng cổng HTTPS của bạn)
+        const backendApiUrl = "https://localhost:7092/api/DeviceToken/register"; // Đảm bảo đúng cổng và đường dẫn
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+
+        const outputDiv = document.getElementById('output');
+        const tokenOutputSpan = document.getElementById('tokenOutput');
+        const getTokenButton = document.getElementById('getTokenButton');
+        const sendTokenButton = document.getElementById('sendTokenButton');
+        const userIdInput = document.getElementById('userId');
+
+        function log(message) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            outputDiv.appendChild(p);
+            outputDiv.scrollTop = outputDiv.scrollHeight; // Auto scroll to bottom
+        }
+
+        // Yêu cầu quyền thông báo và lấy Token
+        getTokenButton.addEventListener('click', async () => {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    log('Notification permission granted.');
+
+                    // Lấy Service Worker
+                    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                    log('Service Worker registered.');
+
+                    // Lấy FCM Device Token
+                    const currentToken = await messaging.getToken({ serviceWorkerRegistration: registration, vapidKey: 'BLs7_G3djTdYNFccwMD6pFk7xkbnJ3T-l7DrtCjT1mdCCN1k8cyHAtE9ArPLIt6HdmndtfJU09f10xdEq3kXajI' });
+                    // VAPID Key: Trong Firebase Console -> Project settings -> Cloud Messaging -> Web Push Certificates. Bạn có thể tạo key mới ở đây.
+                    // Đây là một Base64-encoded string.
+                    // Ví dụ: 'BPxYJgB9_p1-zV3v9Q5m_r1vQ7J0x9y2x8t5U0e4k6u7w8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o4p5q6r7s8t9u0v1w2x3y4z5'
+
+                    if (currentToken) {
+                        tokenOutputSpan.textContent = currentToken;
+                        log(`FCM Device Token: ${currentToken}`);
+                    } else {
+                        log('No FCM device token available. Request permission to generate one.');
+                    }
+                } else {
+                    log('Notification permission denied.');
+                }
+            } catch (err) {
+                log('An error occurred while retrieving token. ' + err.message);
+                console.error('Error getting token:', err);
+            }
+        });
+
+        // Gửi Token lên Backend
+        sendTokenButton.addEventListener('click', async () => {
+            const token = tokenOutputSpan.textContent;
+            const userId = userIdInput.value;
+
+            if (token === 'N/A' || !userId) {
+                log('Please get a device token and enter a User ID first.');
+                return;
+            }
+
+            try {
+                const response = await fetch(backendApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId: parseInt(userId), token: token })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Token sent to server: ${data.Message}`);
+                } else {
+                    const errorData = await response.text();
+                    log(`Failed to send token to server: ${response.status} - ${errorData}`);
+                    console.error('Failed to send token:', errorData);
+                }
+            } catch (error) {
+                log('Error sending token to server: ' + error.message);
+                console.error('Network error sending token:', error);
+            }
+        });
+
+        // Xử lý thông báo foreground (khi ứng dụng web đang mở)
+        messaging.onMessage((payload) => {
+            log('Received foreground message: ' + JSON.stringify(payload));
+            // Tùy chỉnh cách hiển thị thông báo trong foreground (ví dụ: popup, update UI)
+            alert(`New Message: <span class="math-inline">\{payload\.notification\.title\}\\n</span>{payload.notification.body}`);
+        });
+
+        // Bắt lỗi khi Service Worker không đăng ký được
+        navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(err => {
+            log('Service Worker registration failed: ' + err.message);
+            console.error('Service Worker registration failed:', err);
+        });
+    </script>
+</body>
+
+</html>

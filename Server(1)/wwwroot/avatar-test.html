@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avatar API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input, button, textarea {
+            margin: 5px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .avatar-preview {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 50%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Avatar API Test</h1>
+
+    <div class="container">
+        <h2>Get User Avatar</h2>
+        <input type="number" id="getUserId" placeholder="User ID" value="1">
+        <button onclick="getUserAvatar()">Get Avatar</button>
+        <div id="getResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>Update User Avatar</h2>
+        <input type="number" id="updateUserId" placeholder="User ID" value="1">
+        <input type="url" id="avatarUrl" placeholder="Avatar URL" value="https://via.placeholder.com/150">
+        <button onclick="updateUserAvatar()">Update Avatar</button>
+        <div id="updateResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>Avatar Preview</h2>
+        <img id="avatarPreview" class="avatar-preview" style="display: none;" alt="Avatar Preview">
+    </div>
+
+    <script>
+        const API_BASE = 'https://localhost:7092/api';
+
+        async function getUserAvatar() {
+            const userId = document.getElementById('getUserId').value;
+            const resultDiv = document.getElementById('getResult');
+            
+            if (!userId) {
+                showResult(resultDiv, 'Please enter a User ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users/${userId}/avatar`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(resultDiv, `Avatar: ${JSON.stringify(data, null, 2)}`, 'success');
+                    
+                    // Show avatar preview if exists
+                    if (data.avatar) {
+                        const preview = document.getElementById('avatarPreview');
+                        preview.src = data.avatar;
+                        preview.style.display = 'block';
+                    }
+                } else {
+                    showResult(resultDiv, `Error: ${data.message || 'Failed to get avatar'}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultDiv, `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function updateUserAvatar() {
+            const userId = document.getElementById('updateUserId').value;
+            const avatarUrl = document.getElementById('avatarUrl').value;
+            const resultDiv = document.getElementById('updateResult');
+            
+            if (!userId || !avatarUrl) {
+                showResult(resultDiv, 'Please enter both User ID and Avatar URL', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users/${userId}/avatar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ avatar: avatarUrl })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(resultDiv, `Success: ${data.message}`, 'success');
+                    
+                    // Update preview
+                    const preview = document.getElementById('avatarPreview');
+                    preview.src = avatarUrl;
+                    preview.style.display = 'block';
+                    
+                    // Auto-refresh get avatar
+                    document.getElementById('getUserId').value = userId;
+                    setTimeout(getUserAvatar, 500);
+                } else {
+                    showResult(resultDiv, `Error: ${data.message || 'Failed to update avatar'}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultDiv, `Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(element, message, type) {
+            element.innerHTML = `<pre>${message}</pre>`;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+
+        // Test with some sample avatar URLs
+        const sampleAvatars = [
+            'https://via.placeholder.com/150/FF0000/FFFFFF?text=User1',
+            'https://via.placeholder.com/150/00FF00/FFFFFF?text=User2',
+            'https://via.placeholder.com/150/0000FF/FFFFFF?text=User3',
+            'https://avatars.githubusercontent.com/u/1?v=4',
+            'https://i.pravatar.cc/150?img=1'
+        ];
+
+        // Add sample avatars to the input field for easy testing
+        document.getElementById('avatarUrl').addEventListener('focus', function() {
+            if (this.value === 'https://via.placeholder.com/150') {
+                this.value = sampleAvatars[Math.floor(Math.random() * sampleAvatars.length)];
+            }
+        });
+    </script>
+</body>
+</html>

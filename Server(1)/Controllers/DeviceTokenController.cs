@@ -16,7 +16,7 @@ namespace Server_1_.Controllers
         public DeviceTokenController(ILogger<DeviceTokenController> logger , IUserService userService)
         {
             _logger = logger;
-             _userService = userService;
+            _userService = userService;
         }
 
         [HttpPost("register")]

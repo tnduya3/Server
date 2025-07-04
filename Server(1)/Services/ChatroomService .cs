@@ -179,7 +179,9 @@ namespace Server_1_.Services
                 _logger.LogError(ex, "Error soft deleting chatroom {ChatroomId}", id);
                 return false;
             }
-        }        // Participant management
+        }        
+        
+        // Participant management
         public async Task<bool> AddUserToChatroomAsync(int chatroomId, int userId, string role = "member", int? addedBy = null)
         {
             try
@@ -470,7 +472,8 @@ namespace Server_1_.Services
                     .CountAsync(p => p.User.IsOnline);
 
                 var messageCount = await GetMessageCountAsync(chatroomId);
-                var lastActivity = await GetLastActivityAsync(chatroomId);                return new ChatroomStats
+                var lastActivity = await GetLastActivityAsync(chatroomId);                
+                return new ChatroomStats
                 {
                     ChatroomId = chatroomId,
                     Name = chatroom?.Name ?? "Unknown",
@@ -493,7 +496,9 @@ namespace Server_1_.Services
         {
             var chatroom = await _context.Chatrooms.FindAsync(chatroomId);
             return chatroom?.LastActivity;
-        }        public async Task<int> GetMessageCountAsync(int chatroomId)
+        }        
+        
+        public async Task<int> GetMessageCountAsync(int chatroomId)
         {
             // Assuming you have a Messages table
             return await _context.Messages
@@ -642,7 +647,8 @@ namespace Server_1_.Services
                            !c.IsGroup && // Direct chat
                            c.Participants.Count == 2 && // Only 2 participants
                            c.Participants.Any(p => p.UserId == friendId && p.IsActive))
-                .FirstOrDefaultAsync();            return chatroom;
+                .FirstOrDefaultAsync();            
+                return chatroom;
         }
 
         public async Task<bool> CreateAndStartChatWithFriendAsync(int userId, int friendId, string? initialMessage = null)

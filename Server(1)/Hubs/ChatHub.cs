@@ -26,7 +26,9 @@ namespace Server_1_.Hubs
             _messageService = messageService;
             _userService = userService;
             _chatroomService = chatroomService;
-        }        // Phương thức để user đăng ký với Hub bằng UserID
+        }        
+        
+        // Phương thức để user đăng ký với Hub bằng UserID
         public async Task RegisterUser(string userId)
         {
             ConnectedUsers[Context.ConnectionId] = userId;
@@ -144,7 +146,9 @@ namespace Server_1_.Hubs
             {
                 Console.WriteLine($"Error marking message as read: {ex.Message}");
             }
-        }        // Phương thức mà client có thể gọi để tham gia một phòng chat
+        }        
+        
+        // Phương thức mà client có thể gọi để tham gia một phòng chat
         public async Task JoinChatroom(string chatroomId, string userId)
         {
             try

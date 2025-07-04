@@ -90,11 +90,6 @@ namespace Server_1_.Controllers
             await _userService.UpdateDeviceTokenAsync(user.UserId, deviceToken);
             return NoContent();
         }
-        // Thêm mô tả Swagger cho phương thức này
-        // Mô tả Swagger cho phương thức UpdateDeviceToken
-        // [SwaggerOperation(Summary = "Cập nhật token thiết bị của người dùng", Description = "Cập nhật token thiết bị cho người dùng với ID nhất định.")]
-
-
 
         // DELETE /api/users/{id}
         [HttpDelete("{id}")]

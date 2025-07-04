@@ -30,7 +30,9 @@ namespace Server_1_.Controllers
             _messageService = messageService;
             _userService = userService;
             _hubContext = hubContext;
-        }        // GET /api/chatrooms
+        }        
+        
+        // GET /api/chatrooms
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetChatrooms()
         {
@@ -51,7 +53,9 @@ namespace Server_1_.Controllers
                 ParticipantCount = c.Participants?.Count ?? 0
             });
             return Ok(result);
-        }// GET /api/chatrooms/{id}
+        }
+        
+        // GET /api/chatrooms/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> GetChatroom(int id)
         {
@@ -80,7 +84,9 @@ namespace Server_1_.Controllers
             };
             
             return Ok(result);
-        }// POST /api/chatrooms
+        }
+        
+        // POST /api/chatrooms
         [HttpPost]
         public async Task<ActionResult<object>> CreateChatroom(CreateChatroomRequest request)
         {
@@ -157,7 +163,9 @@ namespace Server_1_.Controllers
                 return NotFound();
             }
             return NoContent();
-        }        // GET /api/chatrooms/user/{userId}
+        }        
+        
+        // GET /api/chatrooms/user/{userId}
         [HttpGet("user/{userId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetUserChatrooms(int userId)
         {
@@ -282,7 +290,9 @@ namespace Server_1_.Controllers
                 return NotFound();
             }
             return NoContent();
-        }        // GET /api/chatrooms/{chatroomId}/users
+        }        
+        
+        // GET /api/chatrooms/{chatroomId}/users
         [HttpGet("{chatroomId}/users")]
         public async Task<ActionResult<List<object>>> GetParticipantsInChatroom(int chatroomId)
         {
@@ -304,7 +314,9 @@ namespace Server_1_.Controllers
         {
             var participants = await _chatroomService.GetParticipantsWithRolesAsync(chatroomId);
             return Ok(participants);
-        }        // GET /api/chatrooms/{chatroomId}/participants/active
+        }        
+        
+        // GET /api/chatrooms/{chatroomId}/participants/active
         [HttpGet("{chatroomId}/participants/active")]
         public async Task<ActionResult<List<object>>> GetActiveParticipants(int chatroomId)
         {
@@ -370,7 +382,9 @@ namespace Server_1_.Controllers
                 return NotFound();
             }
             return NoContent();
-        }        // GET /api/chatrooms/{chatroomId}/messages
+        }        
+        
+        // GET /api/chatrooms/{chatroomId}/messages
         [HttpGet("{chatroomId}/messages")]
         public async Task<ActionResult<IEnumerable<object>>> GetMessagesInChatroom(int chatroomId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
@@ -444,7 +458,9 @@ namespace Server_1_.Controllers
             {
                 return StatusCode(500, "Internal Server Error: " + ex.Message);
             }
-        }        // API endpoint để lấy thống kê chatroom
+        }        
+        
+        // API endpoint để lấy thống kê chatroom
         [HttpGet("{chatroomId}/stats")]
         public async Task<ActionResult<ChatroomStats>> GetChatroomStats(int chatroomId)
         {
@@ -477,7 +493,9 @@ namespace Server_1_.Controllers
         {
             var count = await _chatroomService.GetMessageCountAsync(chatroomId);
             return Ok(count);
-        }        // DTO cho các request
+        }        
+        
+        // DTO cho các request
         public class CreateChatroomRequest
         {
             [Required]

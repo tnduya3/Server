@@ -146,6 +146,15 @@ let typingTimeout = null;
 async function connect() {
     const serverUrl = document.getElementById('serverUrl').value;
     const userId = document.getElementById('userId').value;
+    const username = document.getElementById('username');
+
+    const response = await fetch(`https://localhost:7092/api/Users/${userId}`);
+    if (!response.ok) {
+        username.value = response.userName;
+    } else {
+        const userData = await response.json();
+        username.value = userData.userName;
+    }
 
     if (!serverUrl || !userId) {
         alert('Vui lòng nhập đầy đủ thông tin kết nối!');
@@ -426,7 +435,9 @@ function setupEventHandlers() {
     // Broadcast notifications
     connection.on("BroadcastNotification", function (data) {
         addMessage('📢 Thông báo', data.Body, 'system');
-    });            // Ping/Pong for connection health
+    });            
+    
+    // Ping/Pong for connection health
     connection.on("Pong", function (timestamp) {
         console.log('Pong received at:', timestamp);
         addMessage('System', `Pong received at ${new Date(timestamp).toLocaleTimeString()}`, 'system');

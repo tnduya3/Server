@@ -277,61 +277,6 @@ namespace Server_1_.Services
                     Message = "An error occurred while sending password reset email"
                 };
             }
-
-            //string requestUri = $"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={_apiKey}";
-            //var request = new
-            //{
-            //    requestType = "PASSWORD_RESET",
-            //    email = email
-            //};
-            //var jsonRequest = JsonConvert.SerializeObject(request);
-            //var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-
-            //try
-            //{
-            //    var response = await _httpClient.PostAsync(requestUri, content);
-            //    var responseContent = await response.Content.ReadAsStringAsync();
-            //    if (response.IsSuccessStatusCode)
-            //    {
-            //        // Yêu cầu đặt lại mật khẩu thành công
-            //        return new AuthResult
-            //        {
-            //            Success = true,
-            //            Message = "Password reset email sent successfully. Please check your inbox.",
-            //            Email = email
-            //        };
-            //    }
-            //    else
-            //    {
-            //        // Gửi yêu cầu thất bại, trả về thông báo lỗi
-            //        dynamic jsonResponse = JsonConvert.DeserializeObject(responseContent);
-            //        if (jsonResponse?.error?.message != null)
-            //        {
-            //            return new AuthResult
-            //            {
-            //                Success = false,
-            //                Message = "Failed to send password reset email: " + GetUserFriendlyErrorMessage(jsonResponse.error.message)
-            //            };
-            //        }
-            //        else
-            //        {
-            //            return new AuthResult
-            //            {
-            //                Success = false,
-            //                Message = "Failed to send password reset email: " + response.StatusCode
-            //            };
-            //        }
-            //    }
-            //}
-            //catch (HttpRequestException ex)
-            //{
-            //    _logger.LogError(ex, "Exception during password reset for {Email}", email);
-            //    return new AuthResult
-            //    {
-            //        Success = false,
-            //        Message = "An error occurred while sending password reset email"
-            //    };
-            //}
         }
 
         public async Task<AuthResult> VerifyIdTokenAsync(string idToken)

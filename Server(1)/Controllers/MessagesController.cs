@@ -30,7 +30,9 @@ namespace Server_1_.Controllers
             _userService = userService;
             _hubContext = hubContext;
             _firebaseNotificationService = firebaseNotificationService;
-        }        // POST /api/messages
+        }        
+        
+        // POST /api/messages
         [HttpPost]
         public async Task<ActionResult<Messages>> SendMessage(SendMessageRequest request)
         {
@@ -104,7 +106,9 @@ namespace Server_1_.Controllers
             });
             
             return Ok(result);
-        }// PUT /api/messages/{id}
+        }
+        
+        // PUT /api/messages/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> EditMessage(int id, EditMessageRequest request)
         {
@@ -294,7 +298,9 @@ namespace Server_1_.Controllers
         }
 
         // Các action khác cho các API endpoint khác
-    }    // Định nghĩa các lớp DTO (Data Transfer Objects) cho request
+    }    
+    
+    // Định nghĩa các lớp DTO (Data Transfer Objects) cho request
     public class SendMessageRequest
     {
         [Required]
@@ -311,7 +317,9 @@ namespace Server_1_.Controllers
         public int Id { get; set; }
         [Required]
         public string? Message { get; set; }
-    }    public class TestFirebaseRequest
+    }    
+    
+    public class TestFirebaseRequest
     {
         [Required]
         public string DeviceToken { get; set; } = string.Empty;

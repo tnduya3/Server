@@ -364,3 +364,18 @@ FodyWeavers.xsd
 
 # Google API key file
 realtimechatapplicationg10-firebase-adminsdk-fbsvc-1c9e190b3c.json
+
+# Sensitive files and test files
+test.html
+*test*.html
+*.env
+*.env.local
+*.env.production
+appsettings.Production.json
+firebase-adminsdk-*.json
+*secrets*
+*private-key*
+Server(1)/wwwroot/firebase-config.json
+Server(1)/appsettings.Development.json
+Server(1)/appsettings.json
+Server(1)/ENVIRONMENT-SETUP.md

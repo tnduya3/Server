@@ -1,3 +1,464 @@
+
+// Cookie utility functions
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+    }
+    return null;
+}
+
+// // Set cookie utility function
+// function setCookie(name, value, days) {
+//     let expires = "";
+//     if (days) {
+//         const date = new Date();
+//         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+//         expires = "; expires=" + date.toUTCString();
+//     }
+//     document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Strict; Secure";
+// }
+
+// Global user data object
+let currentUser = null;
+
+// Global variables for chatroom functionality
+let allChatrooms = [];
+let isDropdownOpen = false;
+let selectedChatroom = null;
+
+// Method to decrypt Firebase token and get user information
+async function decryptFirebaseToken() {
+    try {
+        const firebaseToken = getCookie('firebaseToken');
+        const userId = getCookie('userId');
+        const userDisplayName = getCookie('userDisplayName');
+        const userEmail = getCookie('userEmail');
+        const userAvatar = getCookie('userAvatar');
+
+        if (!firebaseToken) {
+            console.warn('No Firebase token found in cookies');
+            redirectToLogin();
+            return null;
+        }
+
+        // Decode JWT token to get user information
+        const tokenPayload = parseJWT(firebaseToken);
+
+        if (!tokenPayload) {
+            console.error('Invalid Firebase token');
+            redirectToLogin();
+            return null;
+        }
+
+        // Check if token is expired
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (tokenPayload.exp && tokenPayload.exp < currentTime) {
+            console.warn('Firebase token has expired');
+            await refreshToken();
+            return null;
+        }
+
+        // Set current user data
+        currentUser = {
+            firebaseToken: firebaseToken,
+            userId: userId,
+            displayName: userDisplayName,
+            email: userEmail,
+            avatar: userAvatar,
+            tokenPayload: tokenPayload
+        };
+
+        console.log('User authenticated successfully:', currentUser);
+        updateUIWithUserInfo();
+        return currentUser;
+
+    } catch (error) {
+        console.error('Error decrypting Firebase token:', error);
+        redirectToLogin();
+        return null;
+    }
+}
+
+// Parse JWT token
+function parseJWT(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch (error) {
+        console.error('Error parsing JWT token:', error);
+        return null;
+    }
+}
+
+// Refresh token if expired
+async function refreshToken() {
+    try {
+        const refreshToken = getCookie('refreshToken');
+        if (!refreshToken) {
+            redirectToLogin();
+            return;
+        }
+
+        const response = await fetch('https://localhost:7092/api/Auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                refreshToken: refreshToken
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Update cookies with new tokens
+            setCookie('firebaseToken', data.accessToken, 7);
+            setCookie('refreshToken', data.refreshToken, 30);
+
+            // Retry decryption with new token
+            await decryptFirebaseToken();
+        } else {
+            console.error('Token refresh failed:', data);
+            redirectToLogin();
+        }
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        redirectToLogin();
+    }
+}
+
+// Redirect to login if not authenticated
+function redirectToLogin() {
+    alert('Please log in to continue');
+    window.location.href = '/Server(1)/wwwroot/login.html';
+}
+
+// Logout function
+function logout() {
+    // Clear all authentication cookies
+    document.cookie = 'firebaseToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userDisplayName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userEmail=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userAvatar=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+    // Redirect to login page
+    window.location.href = '/Server(1)/wwwroot/login.html';
+}
+
+// Update UI with user information
+function updateUIWithUserInfo() {
+    if (!currentUser) return;
+
+    // Update user fields
+    document.getElementById('userId').value = currentUser.userId;
+    document.getElementById('username').value = currentUser.displayName;
+
+    // Update chat title with user info
+    document.getElementById('chatTitle').textContent = `${currentUser.displayName}`;
+
+    // Show user avatar if available
+    if (currentUser.avatar) {
+        addUserAvatar(currentUser.avatar);
+    }
+
+    console.log('UI updated with user information');
+}
+
+// Add user avatar to UI
+function addUserAvatar(avatarUrl) {
+    const chatHeader = document.querySelector('.chat-header');
+    const existingAvatar = chatHeader.querySelector('.user-avatar');
+
+    if (existingAvatar) {
+        existingAvatar.remove();
+    }
+
+    const avatarImg = document.createElement('img');
+    avatarImg.src = avatarUrl;
+    avatarImg.alt = 'User Avatar';
+    avatarImg.className = 'user-avatar';
+    avatarImg.style.cssText = `
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-left: 10px;
+        border: 2px solid white;
+        vertical-align: middle;
+    `;
+
+    chatHeader.appendChild(avatarImg);
+}
+
+// Add logout button to UI
+function addLogoutButton() {
+    const connectionPanel = document.querySelector('.connection-panel');
+    
+    // Check if logout button already exists
+    if (connectionPanel.querySelector('.logout-btn')) {
+        return;
+    }
+    
+    const logoutBtn = document.createElement('button');
+    logoutBtn.textContent = 'Logout';
+    logoutBtn.className = 'logout-btn';
+    logoutBtn.onclick = logout;
+    logoutBtn.style.cssText = `
+        background: #dc3545;
+        margin-top: 10px;
+        width: 100%;
+    `;
+    connectionPanel.appendChild(logoutBtn);
+}
+
+// Chatroom dropdown functionality
+async function loadChatrooms() {
+    if (!currentUser || !currentUser.userId) {
+        console.error('User not authenticated');
+        return;
+    }
+
+    const dropdown = document.getElementById('chatroomDropdown');
+    if (!dropdown) {
+        console.error('Chatroom dropdown not found');
+        return;
+    }
+    
+    dropdown.innerHTML = '<div class="loading-spinner">Loading chatrooms...</div>';
+    dropdown.style.display = 'block';
+
+    try {
+        const response = await fetch(`https://localhost:7092/api/Chatrooms/user/${currentUser.userId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${currentUser.firebaseToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const chatrooms = await response.json();
+            allChatrooms = chatrooms;
+            displayChatrooms(chatrooms);
+            console.log('Chatrooms loaded:', chatrooms);
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('Error loading chatrooms:', error);
+        dropdown.innerHTML = '<div class="chatroom-item" style="color: red;">Error loading chatrooms. Click to retry.</div>';
+    }
+}
+
+function displayChatrooms(chatrooms) {
+    const dropdown = document.getElementById('chatroomDropdown');
+    if (!dropdown) return;
+    
+    if (!chatrooms || chatrooms.length === 0) {
+        dropdown.innerHTML = '<div class="chatroom-item">No chatrooms found</div>';
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    
+    chatrooms.forEach(chatroom => {
+        const item = document.createElement('div');
+        item.className = 'chatroom-item';
+        item.onclick = () => selectChatroom(chatroom);
+        
+        const isPrivate = chatroom.isPrivate ? '🔒' : '👥';
+        const lastActivity = chatroom.lastActivity ? 
+            new Date(chatroom.lastActivity).toLocaleDateString() : 'No activity';
+        
+        item.innerHTML = `
+            <div class="chatroom-name">${isPrivate} ${chatroom.name}</div>
+            <div class="chatroom-description">${chatroom.description || 'No description'}</div>
+            <div class="chatroom-info">ID: ${chatroom.chatRoomId} • Last activity: ${lastActivity}</div>
+        `;
+        
+        dropdown.appendChild(item);
+    });
+}
+
+function selectChatroom(chatroom) {
+    selectedChatroom = chatroom;
+    const selectedInput = document.getElementById('selectedChatroomId');
+    const chatroomInput = document.getElementById('chatroomInput');
+    const chatTitle = document.getElementById('chatTitle');
+    
+    if (selectedInput) selectedInput.value = chatroom.chatRoomId;
+    if (chatroomInput) chatroomInput.value = `${chatroom.name} (ID: ${chatroom.chatRoomId})`;
+    if (chatTitle) chatTitle.textContent = `${chatroom.name}`;
+    
+    // Close dropdown
+    toggleChatroomDropdown(false);
+    
+    console.log('Selected chatroom:', chatroom);
+}
+
+function toggleChatroomDropdown(forceState = null) {
+    const dropdown = document.getElementById('chatroomDropdown');
+    const input = document.getElementById('chatroomInput');
+    
+    if (!dropdown || !input) return;
+    
+    if (forceState !== null) {
+        isDropdownOpen = forceState;
+    } else {
+        isDropdownOpen = !isDropdownOpen;
+    }
+    
+    if (isDropdownOpen) {
+        dropdown.style.display = 'block';
+        input.removeAttribute('readonly');
+        input.focus();
+        
+        // Load chatrooms if not loaded yet
+        if (allChatrooms.length === 0) {
+            loadChatrooms();
+        }
+    } else {
+        dropdown.style.display = 'none';
+        input.setAttribute('readonly', 'true');
+    }
+}
+
+function searchChatrooms(searchTerm) {
+    if (!searchTerm || searchTerm.length === 0) {
+        displayChatrooms(allChatrooms);
+        return;
+    }
+    
+    const filteredChatrooms = allChatrooms.filter(chatroom => 
+        chatroom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        chatroom.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        chatroom.chatRoomId.toString().includes(searchTerm)
+    );
+    
+    displayChatrooms(filteredChatrooms);
+}
+
+// Helper function to get selected chatroom ID
+function getSelectedChatroomId() {
+    const selectedInput = document.getElementById('selectedChatroomId');
+    return selectedInput ? selectedInput.value : (selectedChatroom?.chatRoomId || null);
+}
+
+// Expose functions globally for HTML access
+window.toggleChatroomDropdown = toggleChatroomDropdown;
+window.searchChatrooms = searchChatrooms;
+window.loadChatrooms = loadChatrooms;
+window.getCurrentUser = () => currentUser;
+window.getSelectedChatroom = () => selectedChatroom;
+
+// Refresh token if expired
+async function refreshToken() {
+    try {
+        const refreshToken = getCookie('refreshToken');
+        if (!refreshToken) {
+            redirectToLogin();
+            return;
+        }
+
+        const response = await fetch('/api/Auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                refreshToken: refreshToken
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Update cookies with new tokens
+            setCookie('firebaseToken', data.accessToken, 7);
+            setCookie('refreshToken', data.refreshToken, 30);
+
+            // Retry decryption with new token
+            await decryptFirebaseToken();
+        } else {
+            console.error('Token refresh failed:', data);
+            redirectToLogin();
+        }
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        redirectToLogin();
+    }
+}
+
+// // Set cookie (utility function)
+// function setCookie(name, value, days) {
+//     let expires = "";
+//     if (days) {
+//         const date = new Date();
+//         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+//         expires = "; expires=" + date.toUTCString();
+//     }
+//     document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Strict; Secure";
+// }
+
+// Redirect to login if not authenticated
+function redirectToLogin() {
+    alert('Please log in to continue');
+    window.location.href = '/Server(1)/wwwroot/login.html';
+}
+
+// Logout function
+function logout() {
+    // Clear all authentication cookies
+    document.cookie = 'firebaseToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userDisplayName=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userEmail=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'userAvatar=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+    // Redirect to login page
+    window.location.href = '/Server(1)/wwwroot/login.html';
+}
+
+// Initialize authentication when page loads
+async function initializeAuth() {
+    console.log('Chat client loading...');
+    
+    // Decrypt Firebase token and authenticate user
+    const user = await decryptFirebaseToken();
+    
+    if (user) {
+        console.log('User authenticated, ready to chat!');
+        
+        // Add logout button to UI
+        addLogoutButton();
+        
+        // Setup dropdown click outside handler
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.chatroom-dropdown');
+            if (dropdown && !dropdown.contains(event.target)) {
+                toggleChatroomDropdown(false);
+            }
+        });
+        
+        return true;
+    } else {
+        console.log('User not authenticated, redirecting to login...');
+        return false;
+    }
+}
+
+
 // Firebase Configuration - sẽ được load từ server
 let firebaseConfig = null;
 let VAPID_KEY = null;
@@ -40,7 +501,7 @@ function initializeFirebase() {
             console.error('Firebase config not loaded');
             return false;
         }
-        
+
         firebaseApp = firebase.initializeApp(firebaseConfig);
         messaging = firebase.messaging();
         return true;
@@ -65,9 +526,9 @@ async function getFCMToken() {
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
         // Get FCM token
-        const currentToken = await messaging.getToken({ 
-            serviceWorkerRegistration: registration, 
-            vapidKey: VAPID_KEY 
+        const currentToken = await messaging.getToken({
+            serviceWorkerRegistration: registration,
+            vapidKey: VAPID_KEY
         });
         console.log('FCM Token:', currentToken);
 
@@ -144,19 +605,11 @@ let typingTimeout = null;
 
 // Khởi tạo kết nối SignalR
 async function connect() {
-    const serverUrl = document.getElementById('serverUrl').value;
+    const serverUrl = "https://localhost:7092/chathub";
     const userId = document.getElementById('userId').value;
     const username = document.getElementById('username');
 
-    const response = await fetch(`https://localhost:7092/api/Users/${userId}`);
-    if (!response.ok) {
-        username.value = response.userName;
-    } else {
-        const userData = await response.json();
-        username.value = userData.userName;
-    }
-
-    if (!serverUrl || !userId) {
+    if (!userId) {
         alert('Vui lòng nhập đầy đủ thông tin kết nối!');
         return;
     }
@@ -231,19 +684,35 @@ async function joinRoom() {
         return;
     }
 
-    const chatroomId = document.getElementById('chatroomId').value;
+    // Get chatroom ID from dropdown selection or fallback to manual input
+    let chatroomId = getSelectedChatroomId();
+    if (!chatroomId) {
+        // Fallback to manual input if dropdown not used
+        const chatroomInput = document.getElementById('chatroomId');
+        if (chatroomInput) {
+            chatroomId = chatroomInput.value;
+        }
+    }
+    
     const userId = document.getElementById('userId').value;
 
     if (!chatroomId) {
-        alert('Vui lòng nhập Chatroom ID!');
+        alert('Vui lòng chọn hoặc nhập Chatroom ID!');
         return;
     }
 
     try {
         await connection.invoke("JoinChatroom", chatroomId, userId);
         currentChatroomId = chatroomId;
-        document.getElementById('chatTitle').textContent = `Chat Room #${chatroomId}`;
-        document.getElementById('chatStatus').textContent = `Đã tham gia phòng #${chatroomId}`;
+        
+        // Update UI with selected chatroom info
+        if (selectedChatroom) {
+            document.getElementById('chatTitle').textContent = `${selectedChatroom.name}`;
+            document.getElementById('chatStatus').textContent = `Đã tham gia phòng: ${selectedChatroom.name} (#${chatroomId})`;
+        } else {
+            document.getElementById('chatTitle').textContent = `Chat Room #${chatroomId}`;
+            document.getElementById('chatStatus').textContent = `Đã tham gia phòng #${chatroomId}`;
+        }
 
         // Enable message input
         document.getElementById('messageInput').disabled = false;
@@ -435,8 +904,8 @@ function setupEventHandlers() {
     // Broadcast notifications
     connection.on("BroadcastNotification", function (data) {
         addMessage('📢 Thông báo', data.Body, 'system');
-    });            
-    
+    });
+
     // Ping/Pong for connection health
     connection.on("Pong", function (timestamp) {
         console.log('Pong received at:', timestamp);
@@ -528,119 +997,13 @@ document.getElementById('messageInput').addEventListener('input', function (e) {
     handleTyping();
 });
 
-// Test functions
-async function testPing() {
-    if (connection) {
-        try {
-            await connection.invoke("Ping");
-            addMessage('System', 'Ping sent to server', 'system');
-        } catch (err) {
-            addMessage('System', 'Ping failed: ' + err.message, 'error');
-        }
-    }
-}
-
-let lastMessageId = null;
-async function markMessageAsRead() {
-    if (connection && currentChatroomId && lastMessageId) {
-        try {
-            await connection.invoke("MarkMessageAsRead", lastMessageId, parseInt(currentUserId), parseInt(currentChatroomId));
-            addMessage('System', `Marked message #${lastMessageId} as read`, 'system');
-        } catch (err) {
-            addMessage('System', 'Mark as read failed: ' + err.message, 'error');
-        }
-    } else {
-        addMessage('System', 'No message to mark as read', 'system');
-    }
-}
-
-async function getOnlineUsers() {
-    if (connection && currentChatroomId) {
-        try {
-            await connection.invoke("GetOnlineUsersInChatroom", currentChatroomId);
-            addMessage('System', 'Requested online users list', 'system');
-        } catch (err) {
-            addMessage('System', 'Get online users failed: ' + err.message, 'error');
-        }
-    }
-}
-
-// Test functions cho typing
-async function testTypingMethod() {
-    if (connection) {
-        try {
-            await connection.invoke("TestTyping");
-            addMessage('System', 'TestTyping method called', 'system');
-        } catch (err) {
-            addMessage('System', 'TestTyping failed: ' + err.message, 'error');
-        }
-    } else {
-        addMessage('System', 'Not connected', 'error');
-    }
-}
-
-async function testSendTyping() {
-    if (connection && currentChatroomId) {
-        try {
-            const username = document.getElementById('username').value;
-            console.log('Testing SendTyping with params:', parseInt(currentUserId), parseInt(currentChatroomId), username);
-
-            await connection.invoke("SendTyping", parseInt(currentUserId), parseInt(currentChatroomId), username);
-            addMessage('System', 'SendTyping test called successfully', 'system');
-        } catch (err) {
-            console.error('SendTyping test error:', err);
-            addMessage('System', 'SendTyping test failed: ' + err.message, 'error');
-        }
-    } else {
-        addMessage('System', 'Not connected or not in chatroom', 'error');
-    }
-}
-
-// Test function cho FCM
-async function testFCMToken() {
-    if (!messaging) {
-        addMessage('System', 'Firebase not initialized', 'error');
-        return;
-    }
-
-    addMessage('System', 'Testing FCM token retrieval...', 'system');
-    const token = await getFCMToken();
-
-    if (token && currentUserId) {
-        addMessage('System', `FCM Token: ${token.substring(0, 50)}...`, 'system');
-        await sendFCMTokenToServer(token, currentUserId);
-    }
-}
-
-// Test function cho Firebase config
-async function testFirebaseConfig() {
-    addMessage('System', 'Testing Firebase config loading...', 'system');
-    
-    const configLoaded = await loadFirebaseConfig();
-    
-    if (configLoaded && firebaseConfig) {
-        addMessage('System', `Firebase config loaded successfully!`, 'system');
-        addMessage('System', `Project ID: ${firebaseConfig.projectId}`, 'system');
-        addMessage('System', `VAPID Key: ${VAPID_KEY ? VAPID_KEY.substring(0, 20) + '...' : 'Not found'}`, 'system');
-        
-        // Thử khởi tạo Firebase
-        if (!firebaseApp) {
-            if (initializeFirebase()) {
-                addMessage('System', 'Firebase initialized successfully!', 'system');
-                setupFCMHandlers();
-            } else {
-                addMessage('System', 'Firebase initialization failed!', 'error');
-            }
-        } else {
-            addMessage('System', 'Firebase already initialized', 'system');
-        }
-    } else {
-        addMessage('System', 'Failed to load Firebase config', 'error');
-    }
-}
-
 // Tự động kết nối khi trang load (để demo)
-window.addEventListener('load', function () {
-    // Uncomment dòng dưới để tự động kết nối
-    // setTimeout(connect, 1000);
+window.addEventListener('load', async function () {
+    // Initialize authentication first
+    const isAuthenticated = await initializeAuth();
+    
+    if (isAuthenticated) {
+        // Uncomment dòng dưới để tự động kết nối
+        setTimeout(connect, 1000);
+    }
 });

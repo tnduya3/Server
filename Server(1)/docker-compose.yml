@@ -1,0 +1,75 @@
+version: '3.8'
+services:
+  chat-server:
+    build: .
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - DB_HOST=postgres
+      - DB_NAME=ChatApp
+      - DB_USER=postgres
+      - DB_PASSWORD=YourSecurePassword123!
+      - FIREBASE_PROJECT_ID=your-firebase-project-id
+      - FIREBASE_CREDENTIAL_PATH=/app/firebase-credentials.json
+      - FRONTEND_DOMAIN=yourdomain.com
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    volumes:
+      - ./realtimechatapplicationg10-firebase-adminsdk-fbsvc-1c9e190b3c.json:/app/firebase-credentials.json:ro
+    networks:
+      - chat-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=ChatApp
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=YourSecurePassword123!
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    restart: unless-stopped
+    networks:
+      - chat-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    depends_on:
+      - chat-server
+    restart: unless-stopped
+    networks:
+      - chat-network
+
+  # Optional: Redis for SignalR scale-out
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - chat-network
+    command: redis-server --appendonly yes --requirepass YourRedisPassword123!
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  chat-network:
+    driver: bridge

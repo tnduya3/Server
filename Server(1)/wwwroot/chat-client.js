@@ -71,7 +71,6 @@ async function decryptFirebaseToken() {
             tokenPayload: tokenPayload
         };
 
-        console.log('User authenticated successfully:', currentUser);
         updateUIWithUserInfo();
         return currentUser;
 
@@ -170,8 +169,6 @@ function updateUIWithUserInfo() {
     if (currentUser.avatar) {
         addUserAvatar(currentUser.avatar);
     }
-
-    console.log('UI updated with user information');
 }
 
 // Add user avatar to UI
@@ -249,7 +246,6 @@ async function loadChatrooms() {
             const chatrooms = await response.json();
             allChatrooms = chatrooms;
             displayChatrooms(chatrooms);
-            console.log('Chatrooms loaded:', chatrooms);
         } else {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -301,8 +297,6 @@ function selectChatroom(chatroom) {
 
     // Close dropdown
     toggleChatroomDropdown(false);
-
-    console.log('Selected chatroom:', chatroom);
 }
 
 function toggleChatroomDropdown(forceState = null) {
@@ -431,14 +425,10 @@ function logout() {
 
 // Initialize authentication when page loads
 async function initializeAuth() {
-    console.log('Chat client loading...');
-
     // Decrypt Firebase token and authenticate user
     const user = await decryptFirebaseToken();
 
     if (user) {
-        console.log('User authenticated, ready to chat!');
-
         // Add logout button to UI
         addLogoutButton();
 
@@ -516,7 +506,6 @@ async function getFCMToken() {
         const permission = await Notification.requestPermission();
 
         if (permission !== 'granted') {
-            console.log('Notification permission denied');
             addMessage('System', 'Notification permission denied. Push notifications will not work.', 'error');
             return null;
         }
@@ -529,14 +518,11 @@ async function getFCMToken() {
             serviceWorkerRegistration: registration,
             vapidKey: VAPID_KEY
         });
-        console.log('FCM Token:', currentToken);
 
         if (currentToken) {
-            console.log('FCM Token:', currentToken);
             fcmToken = currentToken;
             return currentToken;
         } else {
-            console.log('No FCM device token available');
             addMessage('System', 'No FCM device token available', 'error');
             return null;
         }
@@ -645,16 +631,13 @@ async function connect() {
 
         // Kết nối
         await connection.start();
-        console.log("SignalR connection started successfully");
 
         // Đăng ký user
         await connection.invoke("RegisterUser", userId);
-        console.log("User registered successfully with ID:", userId);
 
         // Call GetAllOnlineUsers after setting up the event handler
         try {
             await connection.invoke("GetAllOnlineUsers");
-            console.log("GetAllOnlineUsers invoked successfully");
         } catch (error) {
             console.error("Error calling GetAllOnlineUsers:", error);
         }
@@ -688,7 +671,6 @@ async function disconnect() {
         connection = null;
         currentUserId = null;
         updateConnectionStatus(false);
-        console.log('Đã ngắt kết nối');
     }
 }
 
@@ -790,7 +772,6 @@ function handleTyping() {
 
         connection.invoke("SendTyping", parseInt(currentUserId), parseInt(currentChatroomId), username)
             .then(() => {
-                console.log('SendTyping successfully invoked');
             })
             .catch(err => {
                 console.error('Error sending typing indicator:', err);
@@ -808,7 +789,6 @@ function stopTyping() {
 
         connection.invoke("StopTyping", parseInt(currentUserId), parseInt(currentChatroomId))
             .then(() => {
-                console.log('StopTyping successfully invoked');
             })
             .catch(err => {
                 console.error('Error sending stop typing indicator:', err);
@@ -872,8 +852,6 @@ function displayOnlineUsers(users) {
         
         const connectionCount = user.connectionCount || 1;
         
-        console.log(`Processing user: ID=${user.userId}, Username=${user.username}`);
-        
         userDiv.innerHTML = `
             ${avatar}
             <div class="user-info">
@@ -887,17 +865,13 @@ function displayOnlineUsers(users) {
     });
 
     userList.appendChild(usersContainer);
-    console.log(`Displayed ${users.length} online users`);
 }
 
 // Add a test function to manually get online users
 function getOnlineUsers() {
     if (connection && connection.state === signalR.HubConnectionState.Connected) {
-        console.log("Requesting online users...");
         connection.invoke("GetAllOnlineUsers")
             .then(() => {
-                console.log("GetAllOnlineUsers called successfully");
-                addMessage('System', 'Requested online users list', 'system');
             })
             .catch(err => {
                 console.error("Error calling GetAllOnlineUsers:", err);
@@ -942,18 +916,8 @@ function addConnectionDebugging() {
     if (!connection) return;
     
     // Add event handlers for debugging
-    connection.on("OnlineUsers", (data) => {
-        console.log("=== OnlineUsers Event Received ===");
-        console.log("Raw data:", data);
-        console.log("Data type:", typeof data);
-        console.log("Data.Users:", data ? data.Users : "data is null/undefined");
-        console.log("Data.TotalCount:", data ? data.totalCount : "data is null/undefined");
-        console.log("=====================================");
-        
+    connection.on("OnlineUsers", (data) => {        
         if (data) {
-            console.log("Users array:", data.users);
-            console.log("Total count:", data.totalCount);
-            
             // Display online users in UI
             displayOnlineUsers(data.users);
         } else {
@@ -974,7 +938,6 @@ function addConnectionDebugging() {
     });
 
     connection.onreconnected(() => {
-        console.log("SignalR reconnected successfully");
         addMessage('System', 'Reconnected to server', 'system');
         // Re-register user and get online users after reconnection
         if (currentUserId) {
@@ -989,7 +952,6 @@ function addConnectionDebugging() {
     });
 
     connection.onclose(() => {
-        console.log("SignalR connection closed");
         addMessage('System', 'Connection closed', 'system');
     });
 }
@@ -1033,7 +995,7 @@ function setupEventHandlers() {
 
     // Thông báo kết nối thành công
     connection.on("Connected", function (data) {
-        addMessage('System', `Kết nối thành công! Connection ID: ${data.Message}`, 'system');
+        addMessage('System', `Kết nối thành công!`, 'system');
     });
 
     // Xác nhận tham gia phòng
@@ -1090,7 +1052,6 @@ function setupEventHandlers() {
 
     // Message read receipts
     connection.on("MessageRead", function (data) {
-        console.log(`Tin nhắn #${data.MessageId} đã được đọc bởi User ${data.ReadBy}`);
     });
 
     // Broadcast notifications
@@ -1100,7 +1061,6 @@ function setupEventHandlers() {
 
     // Ping/Pong for connection health
     connection.on("Pong", function (timestamp) {
-        console.log('Pong received at:', timestamp);
         addMessage('System', `Pong received at ${new Date(timestamp).toLocaleTimeString()}`, 'system');
     });
 

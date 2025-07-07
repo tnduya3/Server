@@ -59,11 +59,7 @@ namespace Server_1_.Controllers
                 };
 
                 // 3. Gửi tin nhắn qua SignalR đến tất cả users trong chatroom
-                await _hubContext.Clients.Group(request.ChatroomId.ToString())
-                    .SendAsync("ReceiveMessage", messageResponse);
-
-                // 5. Log thành công (Firebase notification đã được gửi trong MessageService)
-                Console.WriteLine($"Message sent successfully - ID: {message.MessageId}, Firebase notifications sent");
+                await _hubContext.Clients.Group(request.ChatroomId.ToString()).SendAsync("ReceiveMessage", messageResponse);
 
                 // 6. Trả về response cho API call
                 return CreatedAtAction(nameof(GetMessage), new { id = message.MessageId }, messageResponse);

@@ -70,9 +70,6 @@ namespace Server_1_.Hubs
                     Status = "success",
                     FirebaseNotificationSent = true // Xác nhận Firebase notification đã được gửi
                 });
-
-                // 6. Log thành công
-                Console.WriteLine($"Message sent via SignalR - ID: {message.MessageId}, SenderName: {message.SenderName}, Firebase notifications sent");
             }
             catch (Exception ex)
             {
@@ -258,24 +255,20 @@ namespace Server_1_.Hubs
         {
             try
             {
-                Console.WriteLine("GetAllOnlineUsers method called");
                 var onlineUsers = new List<object>();
 
                 // Lấy tất cả userId đang online từ ConnectedUsers dictionary
                 var userIds = ConnectedUsers.Values.Distinct().ToList();
-                Console.WriteLine($"Found {userIds.Count} distinct user IDs in ConnectedUsers");
 
                 foreach (var userId in userIds)
                 {
                     try
                     {
-                        Console.WriteLine($"Processing user ID: {userId}");
                         if (int.TryParse(userId, out int parsedUserId))
                         {
                             var user = await _userService.GetUserByIdAsync(parsedUserId);
                             if (user != null)
                             {
-                                Console.WriteLine($"Found user: {user.UserName}");
                                 onlineUsers.Add(new
                                 {
                                     userId = user.UserId,
@@ -301,8 +294,6 @@ namespace Server_1_.Hubs
                         Console.WriteLine($"Error getting user info for userId {userId}: {ex.Message}");
                     }
                 }
-
-                Console.WriteLine($"Sending {onlineUsers.Count} online users to client");
                 // Gửi danh sách users online về client
                 await Clients.Caller.SendAsync("OnlineUsers", new
                 {
@@ -310,8 +301,6 @@ namespace Server_1_.Hubs
                     totalCount = onlineUsers.Count,
                     timestamp = DateTime.UtcNow
                 });
-
-                Console.WriteLine($"Sent online users list with {onlineUsers.Count} users");
             }
             catch (Exception ex)
             {
@@ -373,12 +362,9 @@ namespace Server_1_.Hubs
                     Count = onlineUsersInChatroom.Count,
                     Timestamp = DateTime.UtcNow
                 });
-
-                Console.WriteLine($"Sent online users in chatroom {chatroomId}: {onlineUsersInChatroom.Count} users");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error getting online users in chatroom {chatroomId}: {ex.Message}");
                 await Clients.Caller.SendAsync("ReceiveError", "Failed to get online users in chatroom");
             }
         }
@@ -432,10 +418,7 @@ namespace Server_1_.Hubs
 
         // Các phương thức life-cycle của Hub
         public override async Task OnConnectedAsync()
-        {
-            // Xử lý khi một client kết nối đến Hub
-            Console.WriteLine($"Client connected: {Context.ConnectionId} at {DateTime.UtcNow}");
-            
+        {            
             // Gửi thông báo kết nối thành công
             await Clients.Caller.SendAsync("Connected", new
             {
@@ -448,10 +431,7 @@ namespace Server_1_.Hubs
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
-        {
-            // Xử lý khi một client ngắt kết nối khỏi Hub
-            Console.WriteLine($"Client disconnected: {Context.ConnectionId} at {DateTime.UtcNow}");
-            
+        {            
             // Lấy userId nếu có
             if (ConnectedUsers.TryRemove(Context.ConnectionId, out string? userId))
             {
@@ -531,8 +511,6 @@ namespace Server_1_.Hubs
                 {
                     // User đang online, gửi notification qua SignalR
                     await Clients.Client(recipientConnectionId).SendAsync("ReceiveNotification", notificationData);
-                    
-                    Console.WriteLine($"Notification sent to online user {recipientUserId} for message {messageId}");
                 }
                 else
                 {
@@ -568,8 +546,6 @@ namespace Server_1_.Hubs
                 await Clients.GroupExcept(chatroomId.ToString(), 
                     ConnectedUsers.Where(x => x.Value == senderId.ToString()).Select(x => x.Key).ToList())
                     .SendAsync("ReceiveNotification", notificationData);
-                
-                Console.WriteLine($"Chatroom notification sent for message {messageId} in room {chatroomId}");
             }
             catch (Exception ex)
             {
@@ -591,8 +567,6 @@ namespace Server_1_.Hubs
                     UserId = userId,
                     MarkedAt = DateTime.UtcNow
                 });
-                
-                Console.WriteLine($"Notification {notificationId} marked as read by user {userId}");
             }
             catch (Exception ex)
             {
@@ -605,7 +579,6 @@ namespace Server_1_.Hubs
         {
             try
             {
-                Console.WriteLine("TestTyping method called!");
                 await Clients.Caller.SendAsync("ReceiveError", "TestTyping method successfully called!");
             }
             catch (Exception ex)

@@ -65,7 +65,6 @@ namespace Server_1_.Services
                         message.Message,
                         notificationData
                     );
-                    Console.WriteLine($"Sent FCM to {participant.User?.UserName} ({deviceToken})"); // Log để debug
                 }
             }
                 return message;

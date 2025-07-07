@@ -251,8 +251,185 @@ namespace Server_1_.Hubs
                 OnlineUsers = onlineUsers,
                 Count = onlineUsers.Count
             });
-        }        
-        
+        }
+
+        // Phương thức để lấy tất cả users đang online
+        public async Task GetAllOnlineUsers()
+        {
+            try
+            {
+                Console.WriteLine("GetAllOnlineUsers method called");
+                var onlineUsers = new List<object>();
+
+                // Lấy tất cả userId đang online từ ConnectedUsers dictionary
+                var userIds = ConnectedUsers.Values.Distinct().ToList();
+                Console.WriteLine($"Found {userIds.Count} distinct user IDs in ConnectedUsers");
+
+                foreach (var userId in userIds)
+                {
+                    try
+                    {
+                        Console.WriteLine($"Processing user ID: {userId}");
+                        if (int.TryParse(userId, out int parsedUserId))
+                        {
+                            var user = await _userService.GetUserByIdAsync(parsedUserId);
+                            if (user != null)
+                            {
+                                Console.WriteLine($"Found user: {user.UserName}");
+                                onlineUsers.Add(new
+                                {
+                                    userId = user.UserId,
+                                    username = user.UserName,
+                                    avatar = user.Avatar,
+                                    onlineStatus = "online",
+                                    connectedAt = DateTime.UtcNow, // Có thể lưu timestamp thực tế khi connect
+                                    connectionCount = ConnectedUsers.Count(x => x.Value == userId) // Số lượng kết nối của user này
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"User not found in database for ID: {parsedUserId}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to parse user ID: {userId}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error getting user info for userId {userId}: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"Sending {onlineUsers.Count} online users to client");
+                // Gửi danh sách users online về client
+                await Clients.Caller.SendAsync("OnlineUsers", new
+                {
+                    users = onlineUsers,
+                    totalCount = onlineUsers.Count,
+                    timestamp = DateTime.UtcNow
+                });
+
+                Console.WriteLine($"Sent online users list with {onlineUsers.Count} users");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting online users: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                await Clients.Caller.SendAsync("ReceiveError", "Failed to get online users");
+            }
+        }
+
+        // Phương thức để lấy users online trong một chatroom cụ thể (cải tiến)
+        public async Task GetOnlineUsersInChatroomDetailed(string chatroomId)
+        {
+            try
+            {
+                var onlineUsersInChatroom = new List<object>();
+
+                // Lấy tất cả members của chatroom từ database
+                var chatroomMembers = await _chatroomService.GetParticipantsInChatroomAsync(int.Parse(chatroomId));
+
+                foreach (var member in chatroomMembers)
+                {
+                    // Kiểm tra xem member có đang online không
+                    var isOnline = ConnectedUsers.Values.Contains(member.UserId.ToString());
+                    
+                    if (isOnline)
+                    {
+                        // Kiểm tra xem user có đang trong chatroom group không
+                        var userConnections = ConnectedUsers.Where(x => x.Value == member.UserId.ToString()).Select(x => x.Key);
+                        var isInChatroom = false;
+                        
+                        foreach (var connectionId in userConnections)
+                        {
+                            if (UserGroups.ContainsKey(connectionId) && UserGroups[connectionId].Contains(chatroomId))
+                            {
+                                isInChatroom = true;
+                                break;
+                            }
+                        }
+
+                        if (isInChatroom)
+                        {
+                            onlineUsersInChatroom.Add(new
+                            {
+                                UserId = member.UserId,
+                                Username = member.UserName,
+                                Avatar = member.Avatar,
+                                OnlineStatus = "online",
+                                InChatroom = true,
+                                LastSeen = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+
+                await Clients.Caller.SendAsync("OnlineUsersInChatroom", new
+                {
+                    ChatroomId = chatroomId,
+                    OnlineUsers = onlineUsersInChatroom,
+                    Count = onlineUsersInChatroom.Count,
+                    Timestamp = DateTime.UtcNow
+                });
+
+                Console.WriteLine($"Sent online users in chatroom {chatroomId}: {onlineUsersInChatroom.Count} users");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting online users in chatroom {chatroomId}: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", "Failed to get online users in chatroom");
+            }
+        }
+
+        // Phương thức để check trạng thái online của một user cụ thể
+        public async Task CheckUserOnlineStatus(string userId)
+        {
+            try
+            {
+                var isOnline = ConnectedUsers.Values.Contains(userId);
+                var connectionCount = ConnectedUsers.Count(x => x.Value == userId);
+
+                await Clients.Caller.SendAsync("UserOnlineStatus", new
+                {
+                    UserId = userId,
+                    IsOnline = isOnline,
+                    ConnectionCount = connectionCount,
+                    CheckedAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking user online status: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", "Failed to check user online status");
+            }
+        }
+
+        // Phương thức để lấy thống kê kết nối
+        public async Task GetConnectionStats()
+        {
+            try
+            {
+                var uniqueUsers = ConnectedUsers.Values.Distinct().Count();
+                var totalConnections = ConnectedUsers.Count;
+                var totalGroups = UserGroups.SelectMany(x => x.Value).Distinct().Count();
+
+                await Clients.Caller.SendAsync("ConnectionStats", new
+                {
+                    UniqueOnlineUsers = uniqueUsers,
+                    TotalConnections = totalConnections,
+                    ActiveChatrooms = totalGroups,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting connection stats: {ex.Message}");
+                await Clients.Caller.SendAsync("ReceiveError", "Failed to get connection stats");
+            }
+        }
+
         // Các phương thức life-cycle của Hub
         public override async Task OnConnectedAsync()
         {

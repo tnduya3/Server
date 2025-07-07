@@ -1,4 +1,3 @@
-
 // Cookie utility functions
 function getCookie(name) {
     const nameEQ = name + "=";
@@ -165,7 +164,7 @@ function updateUIWithUserInfo() {
     document.getElementById('username').value = currentUser.displayName;
 
     // Update chat title with user info
-    document.getElementById('chatTitle').textContent = `${currentUser.displayName}`;
+    document.getElementById('chatTitle').textContent = `🤖 ${currentUser.displayName}`;
 
     // Show user avatar if available
     if (currentUser.avatar) {
@@ -203,12 +202,12 @@ function addUserAvatar(avatarUrl) {
 // Add logout button to UI
 function addLogoutButton() {
     const connectionPanel = document.querySelector('.connection-panel');
-    
+
     // Check if logout button already exists
     if (connectionPanel.querySelector('.logout-btn')) {
         return;
     }
-    
+
     const logoutBtn = document.createElement('button');
     logoutBtn.textContent = 'Logout';
     logoutBtn.className = 'logout-btn';
@@ -233,7 +232,7 @@ async function loadChatrooms() {
         console.error('Chatroom dropdown not found');
         return;
     }
-    
+
     dropdown.innerHTML = '<div class="loading-spinner">Loading chatrooms...</div>';
     dropdown.style.display = 'block';
 
@@ -263,29 +262,29 @@ async function loadChatrooms() {
 function displayChatrooms(chatrooms) {
     const dropdown = document.getElementById('chatroomDropdown');
     if (!dropdown) return;
-    
+
     if (!chatrooms || chatrooms.length === 0) {
         dropdown.innerHTML = '<div class="chatroom-item">No chatrooms found</div>';
         return;
     }
 
     dropdown.innerHTML = '';
-    
+
     chatrooms.forEach(chatroom => {
         const item = document.createElement('div');
         item.className = 'chatroom-item';
         item.onclick = () => selectChatroom(chatroom);
-        
+
         const isPrivate = chatroom.isPrivate ? '🔒' : '👥';
-        const lastActivity = chatroom.lastActivity ? 
+        const lastActivity = chatroom.lastActivity ?
             new Date(chatroom.lastActivity).toLocaleDateString() : 'No activity';
-        
+
         item.innerHTML = `
             <div class="chatroom-name">${isPrivate} ${chatroom.name}</div>
             <div class="chatroom-description">${chatroom.description || 'No description'}</div>
             <div class="chatroom-info">ID: ${chatroom.chatRoomId} • Last activity: ${lastActivity}</div>
         `;
-        
+
         dropdown.appendChild(item);
     });
 }
@@ -295,34 +294,34 @@ function selectChatroom(chatroom) {
     const selectedInput = document.getElementById('selectedChatroomId');
     const chatroomInput = document.getElementById('chatroomInput');
     const chatTitle = document.getElementById('chatTitle');
-    
+
     if (selectedInput) selectedInput.value = chatroom.chatRoomId;
     if (chatroomInput) chatroomInput.value = `${chatroom.name} (ID: ${chatroom.chatRoomId})`;
     if (chatTitle) chatTitle.textContent = `${chatroom.name}`;
-    
+
     // Close dropdown
     toggleChatroomDropdown(false);
-    
+
     console.log('Selected chatroom:', chatroom);
 }
 
 function toggleChatroomDropdown(forceState = null) {
     const dropdown = document.getElementById('chatroomDropdown');
     const input = document.getElementById('chatroomInput');
-    
+
     if (!dropdown || !input) return;
-    
+
     if (forceState !== null) {
         isDropdownOpen = forceState;
     } else {
         isDropdownOpen = !isDropdownOpen;
     }
-    
+
     if (isDropdownOpen) {
         dropdown.style.display = 'block';
         input.removeAttribute('readonly');
         input.focus();
-        
+
         // Load chatrooms if not loaded yet
         if (allChatrooms.length === 0) {
             loadChatrooms();
@@ -338,13 +337,13 @@ function searchChatrooms(searchTerm) {
         displayChatrooms(allChatrooms);
         return;
     }
-    
-    const filteredChatrooms = allChatrooms.filter(chatroom => 
+
+    const filteredChatrooms = allChatrooms.filter(chatroom =>
         chatroom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         chatroom.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         chatroom.chatRoomId.toString().includes(searchTerm)
     );
-    
+
     displayChatrooms(filteredChatrooms);
 }
 
@@ -433,24 +432,24 @@ function logout() {
 // Initialize authentication when page loads
 async function initializeAuth() {
     console.log('Chat client loading...');
-    
+
     // Decrypt Firebase token and authenticate user
     const user = await decryptFirebaseToken();
-    
+
     if (user) {
         console.log('User authenticated, ready to chat!');
-        
+
         // Add logout button to UI
         addLogoutButton();
-        
+
         // Setup dropdown click outside handler
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             const dropdown = document.querySelector('.chatroom-dropdown');
             if (dropdown && !dropdown.contains(event.target)) {
                 toggleChatroomDropdown(false);
             }
         });
-        
+
         return true;
     } else {
         console.log('User not authenticated, redirecting to login...');
@@ -640,15 +639,31 @@ async function connect() {
 
         // Đăng ký các event handlers
         setupEventHandlers();
+        
+        // Add debugging event handlers
+        addConnectionDebugging();
 
         // Kết nối
         await connection.start();
+        console.log("SignalR connection started successfully");
 
         // Đăng ký user
         await connection.invoke("RegisterUser", userId);
+        console.log("User registered successfully with ID:", userId);
+
+        // Call GetAllOnlineUsers after setting up the event handler
+        try {
+            await connection.invoke("GetAllOnlineUsers");
+            console.log("GetAllOnlineUsers invoked successfully");
+        } catch (error) {
+            console.error("Error calling GetAllOnlineUsers:", error);
+        }
 
         currentUserId = userId;
         updateConnectionStatus(true);
+        
+        // Add refresh button to online users section
+        addRefreshButton();
 
         // Get and send FCM token after successful SignalR connection
         if (messaging) {
@@ -693,7 +708,7 @@ async function joinRoom() {
             chatroomId = chatroomInput.value;
         }
     }
-    
+
     const userId = document.getElementById('userId').value;
 
     if (!chatroomId) {
@@ -704,7 +719,7 @@ async function joinRoom() {
     try {
         await connection.invoke("JoinChatroom", chatroomId, userId);
         currentChatroomId = chatroomId;
-        
+
         // Update UI with selected chatroom info
         if (selectedChatroom) {
             document.getElementById('chatTitle').textContent = `${selectedChatroom.name}`;
@@ -802,6 +817,183 @@ function stopTyping() {
     }
 }
 
+// Function to display online users in the UI
+function displayOnlineUsers(users) {
+    const userList = document.getElementById('onlineUsersList');
+    if (!userList) {
+        console.error("onlineUsersList element not found in HTML");
+        return;
+    }
+
+    userList.innerHTML = ''; // Clear current list
+
+    if (!users || users.length === 0) {
+        userList.innerHTML = `
+            <div style="text-align: center; color: #6c757d; font-style: italic; padding: 20px;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">👥</div>
+                <div>Chưa có ai online</div>
+            </div>
+        `;
+        return;
+    }
+
+    // Add a summary at the top
+    const summary = document.createElement('div');
+    summary.style.cssText = `
+        padding: 12px 0;
+        font-weight: 600;
+        color: #00b894;
+        font-size: 14px;
+        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 16px;
+        text-align: center;
+    `;
+    summary.innerHTML = `
+        <div style="font-size: 1.2rem; margin-bottom: 4px;">🟢</div>
+        <div>${users.length} user${users.length !== 1 ? 's' : ''} online</div>
+    `;
+    userList.appendChild(summary);
+
+    // Create a container for the users
+    const usersContainer = document.createElement('div');
+    usersContainer.className = 'users-container';
+
+    users.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-item';
+        
+        // Get user initials for avatar
+        const displayName = user.username || `User ${user.UserId}`;
+        const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        
+        const avatar = user.avatar ? 
+            `<img src="${user.avatar}" alt="Avatar" class="user-avatar" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">` : 
+            `<div class="user-avatar">${initials}</div>`;
+        
+        const connectionCount = user.connectionCount || 1;
+        
+        console.log(`Processing user: ID=${user.userId}, Username=${user.username}`);
+        
+        userDiv.innerHTML = `
+            ${avatar}
+            <div class="user-info">
+                <div class="user-name">${displayName}</div>
+                <div class="user-status">ID: ${user.userId} • ${user.onlineStatus}</div>
+            </div>
+            <div class="online-indicator"></div>
+        `;
+        
+        usersContainer.appendChild(userDiv);
+    });
+
+    userList.appendChild(usersContainer);
+    console.log(`Displayed ${users.length} online users`);
+}
+
+// Add a test function to manually get online users
+function getOnlineUsers() {
+    if (connection && connection.state === signalR.HubConnectionState.Connected) {
+        console.log("Requesting online users...");
+        connection.invoke("GetAllOnlineUsers")
+            .then(() => {
+                console.log("GetAllOnlineUsers called successfully");
+                addMessage('System', 'Requested online users list', 'system');
+            })
+            .catch(err => {
+                console.error("Error calling GetAllOnlineUsers:", err);
+                addMessage('System', 'Error getting online users: ' + err.message, 'error');
+            });
+    } else {
+        console.log("No connection available or connection not ready");
+        addMessage('System', 'No connection available to get online users', 'error');
+    }
+}
+
+// Add refresh button to online users section
+function addRefreshButton() {
+    const onlineUsersDiv = document.querySelector('.online-users');
+    if (onlineUsersDiv) {
+        // Check if button already exists
+        if (!onlineUsersDiv.querySelector('.refresh-users-btn')) {
+            const refreshBtn = document.createElement('button');
+            refreshBtn.textContent = 'Refresh Users';
+            refreshBtn.className = 'refresh-users-btn';
+            refreshBtn.onclick = getOnlineUsers;
+            refreshBtn.style.cssText = `
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-top: 10px;
+                font-size: 12px;
+            `;
+            onlineUsersDiv.appendChild(refreshBtn);
+        }
+    }
+}
+
+// Expose the function globally
+window.getOnlineUsers = getOnlineUsers;
+
+// Add debugging for connection events
+function addConnectionDebugging() {
+    if (!connection) return;
+    
+    // Add event handlers for debugging
+    connection.on("OnlineUsers", (data) => {
+        console.log("=== OnlineUsers Event Received ===");
+        console.log("Raw data:", data);
+        console.log("Data type:", typeof data);
+        console.log("Data.Users:", data ? data.Users : "data is null/undefined");
+        console.log("Data.TotalCount:", data ? data.totalCount : "data is null/undefined");
+        console.log("=====================================");
+        
+        if (data) {
+            console.log("Users array:", data.users);
+            console.log("Total count:", data.totalCount);
+            
+            // Display online users in UI
+            displayOnlineUsers(data.users);
+        } else {
+            console.log("No users data received or data is undefined");
+            console.log("Data object:", JSON.stringify(data, null, 2));
+        }
+    });
+
+    connection.on("ReceiveError", (error) => {
+        console.error("SignalR Error received:", error);
+        addMessage('System', 'Error: ' + error, 'error');
+    });
+
+    // Add reconnection debugging
+    connection.onreconnecting(() => {
+        console.log("SignalR reconnecting...");
+        addMessage('System', 'Reconnecting to server...', 'system');
+    });
+
+    connection.onreconnected(() => {
+        console.log("SignalR reconnected successfully");
+        addMessage('System', 'Reconnected to server', 'system');
+        // Re-register user and get online users after reconnection
+        if (currentUserId) {
+            connection.invoke("RegisterUser", currentUserId)
+                .then(() => {
+                    return connection.invoke("GetAllOnlineUsers");
+                })
+                .catch(err => {
+                    console.error("Error re-registering after reconnection:", err);
+                });
+        }
+    });
+
+    connection.onclose(() => {
+        console.log("SignalR connection closed");
+        addMessage('System', 'Connection closed', 'system');
+    });
+}
+
 // Setup event handlers cho SignalR
 function setupEventHandlers() {
 
@@ -861,7 +1053,7 @@ function setupEventHandlers() {
 
     // User rời phòng
     connection.on("UserLeftChatroom", function (data) {
-        addMessage('System', `${data.Username} đã rời phòng chat`, 'system');
+        addMessage('System', `${data.userId} đã rời phòng chat`, 'system');
     });
     // Typing indicators
     connection.on("UserTyping", function (data) {
@@ -1001,9 +1193,12 @@ document.getElementById('messageInput').addEventListener('input', function (e) {
 window.addEventListener('load', async function () {
     // Initialize authentication first
     const isAuthenticated = await initializeAuth();
-    
+
     if (isAuthenticated) {
         // Uncomment dòng dưới để tự động kết nối
         setTimeout(connect, 1000);
     }
 });
+
+// Add debugging functions for connection events
+addConnectionDebugging();

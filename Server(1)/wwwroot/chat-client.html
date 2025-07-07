@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,333 +10,584 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .app-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .app-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .app-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
         .chat-container {
             display: flex;
             gap: 20px;
-            height: 600px;
+            height: 80vh;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-        
+
         .connection-panel {
-            width: 300px;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 360px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
         }
-        
+
+        .panel-header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .panel-header h3 {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .panel-header p {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
         .chat-panel {
             flex: 1;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
-        
+
         .chat-header {
-            padding: 15px 20px;
-            background: #007bff;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-radius: 8px 8px 0 0;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
-        
+
+        .chat-header h3 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+
+        .chat-header #chatStatus {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
         .messages-container {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
-            background: #fafafa;
+            background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e0 #e2e8f0;
         }
-        
+
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 3px;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+
         .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 8px;
-            max-width: 70%;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 75%;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
         }
-        
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .message.sent {
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             margin-left: auto;
             text-align: right;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
-        
+
         .message.received {
             background: white;
-            border: 1px solid #ddd;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        
+
+        .message.system {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #2d3436;
+            margin: 0 auto;
+            text-align: center;
+            max-width: 90%;
+            border-radius: 20px;
+        }
+
         .message-info {
-            font-size: 12px;
+            font-size: 11px;
             opacity: 0.7;
-            margin-top: 5px;
-        }
-        
-        .typing-indicator {
-            padding: 10px;
+            margin-top: 6px;
             font-style: italic;
-            color: #666;
-            display: none;
         }
-        
+
+        .typing-indicator {
+            padding: 12px 20px;
+            font-style: italic;
+            color: #6c757d;
+            display: none;
+            background: rgba(108, 117, 125, 0.1);
+            border-radius: 12px;
+            margin: 8px 20px;
+        }
+
         .input-panel {
             padding: 20px;
-            border-top: 1px solid #ddd;
+            border-top: 1px solid #e9ecef;
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            background: white;
+            border-radius: 0 0 16px 16px;
         }
-        
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
         input, button, select {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
             font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s ease;
         }
-        
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         button {
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             cursor: pointer;
-            min-width: 100px;
+            font-weight: 600;
+            min-width: 120px;
+            transition: all 0.3s ease;
         }
-        
-        button:hover {
-            background: #0056b3;
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
-        
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
         button:disabled {
-            background: #ccc;
+            background: #dee2e6;
+            color: #6c757d;
             cursor: not-allowed;
+            transform: none;
         }
-        
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .button-group button {
+            flex: 1;
+            min-width: auto;
+        }
+
         .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 12px;
             font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.3s ease;
         }
-        
+
         .status.connected {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 184, 148, 0.3);
         }
-        
+
         .status.disconnected {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+            background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(253, 121, 168, 0.3);
         }
-        
+
         .status.error {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
+            background: linear-gradient(135deg, #fdcb6e 0%, #f39c12 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(253, 203, 110, 0.3);
         }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        
+
         #messageInput {
             flex: 1;
+            border-radius: 25px;
+            padding: 12px 20px;
         }
-        
+
+        #sendBtn {
+            border-radius: 25px;
+            padding: 12px 24px;
+            min-width: 80px;
+        }
+
         .online-users {
-            margin-top: 20px;
+            margin-top: 24px;
         }
-          .user-list {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            max-height: 150px;
+
+        .online-users h4 {
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+
+        .user-list {
+            background: rgba(248, 249, 250, 0.8);
+            padding: 16px;
+            border-radius: 12px;
+            max-height: 180px;
             overflow-y: auto;
+            border: 1px solid #e9ecef;
         }
-        
-        .test-functions {
-            margin-top: 20px;
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
         }
-        
-        .test-functions button {
-            font-size: 12px;
-            padding: 8px;
+
+        .user-item:hover {
+            transform: translateX(4px);
         }
-        
-        .message.system {
-            background: #e9ecef;
-            border: 1px solid #dee2e6;
-            color: #495057;
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
         }
-        
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .user-status {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .online-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00b894;
+            margin-left: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 184, 148, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0); }
+        }
+
         /* Chatroom dropdown styles */
         .chatroom-dropdown {
             position: relative;
             width: 100%;
         }
-        
+
         .chatroom-input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
             font-size: 14px;
             cursor: pointer;
+            transition: all 0.3s ease;
         }
-        
+
+        .chatroom-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         .chatroom-dropdown-list {
             position: absolute;
             top: 100%;
             left: 0;
             right: 0;
             background: white;
-            border: 1px solid #ddd;
+            border: 2px solid #e9ecef;
             border-top: none;
-            border-radius: 0 0 4px 4px;
+            border-radius: 0 0 12px 12px;
             max-height: 200px;
             overflow-y: auto;
             z-index: 1000;
             display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        
+
         .chatroom-item {
-            padding: 10px;
+            padding: 12px 16px;
             cursor: pointer;
-            border-bottom: 1px solid #eee;
-            transition: background-color 0.2s;
+            border-bottom: 1px solid #f8f9fa;
+            transition: all 0.2s ease;
         }
-        
+
         .chatroom-item:hover {
-            background-color: #f8f9fa;
+            background: #f8f9fa;
+            transform: translateX(4px);
         }
-        
+
         .chatroom-item:last-child {
             border-bottom: none;
         }
-        
+
         .chatroom-item.selected {
-            background-color: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
+
         .chatroom-name {
-            font-weight: bold;
-            margin-bottom: 2px;
+            font-weight: 600;
+            margin-bottom: 4px;
         }
-        
+
         .chatroom-description {
             font-size: 12px;
-            color: #666;
-            margin-bottom: 2px;
+            color: #6c757d;
+            margin-bottom: 4px;
         }
-        
+
         .chatroom-info {
             font-size: 11px;
-            color: #999;
+            color: #adb5bd;
         }
-        
+
         .loading-spinner {
             text-align: center;
-            padding: 10px;
-            color: #666;
+            padding: 16px;
+            color: #6c757d;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .chat-container {
+                flex-direction: column;
+                height: auto;
+                gap: 16px;
+            }
+
+            .connection-panel {
+                width: 100%;
+                order: 2;
+            }
+
+            .chat-panel {
+                order: 1;
+                height: 60vh;
+            }
+
+            .app-header h1 {
+                font-size: 2rem;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar for webkit browsers */
+        .user-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .user-list::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 3px;
+        }
+
+        .user-list::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
         }
     </style>
 </head>
+
 <body>
-    <h1>🚀 ChatR</h1>
-    
+    <div class="app-header">
+        <h1>🚀 ChatR</h1>
+        <p>Ứng dụng chat thời gian thực với SignalR & Firebase</p>
+    </div>
+
     <div class="chat-container">
         <!-- Panel kết nối -->
         <div class="connection-panel">
-            <h3>Kết nối & Cài đặt</h3>
-            
+            <div class="panel-header">
+                <h3>🔗 Kết nối & Cài đặt</h3>
+                <p>Cấu hình thông tin để tham gia chat</p>
+            </div>
+
             <div class="form-group">
-                <label for="userId">User ID:</label>
+                <label for="userId">👤 User ID:</label>
                 <input type="number" id="userId" value="1" style="width: 100%;">
             </div>
-            
+
             <div class="form-group">
-                <label for="username">Username:</label>
+                <label for="username">📝 Username:</label>
                 <input type="text" id="username" value="User1" style="width: 100%;">
             </div>
-            
+
             <div class="form-group">
-                <label for="chatroomId">Select Chatroom:</label>
+                <label for="chatroomId">🏠 Chọn Chatroom:</label>
                 <div class="chatroom-dropdown">
-                    <input type="text" 
-                           id="chatroomInput" 
-                           class="chatroom-input" 
-                           placeholder="Click to select or search chatrooms..." 
-                           readonly
-                           onclick="toggleChatroomDropdown()"
-                           onkeyup="searchChatrooms(this.value)">
+                    <input type="text" id="chatroomInput" class="chatroom-input"
+                        placeholder="Click để chọn hoặc tìm chatrooms..." readonly onclick="toggleChatroomDropdown()"
+                        onkeyup="searchChatrooms(this.value)">
                     <div id="chatroomDropdown" class="chatroom-dropdown-list">
                         <div class="loading-spinner">Click to load chatrooms...</div>
                     </div>
                 </div>
                 <input type="hidden" id="selectedChatroomId" value="">
             </div>
-            
-            <button id="connectBtn" onclick="connect()">Kết nối</button>
-            <button id="disconnectBtn" onclick="disconnect()" disabled>Ngắt kết nối</button>
-            
+
+            <div class="button-group">
+                <button id="connectBtn" onclick="connect()">🔌 Kết nối</button>
+                <button id="disconnectBtn" onclick="disconnect()" disabled>🔌 Ngắt kết nối</button>
+            </div>
+
             <div id="connectionStatus" class="status disconnected">
-                Chưa kết nối
+                ⚠️ Chưa kết nối
             </div>
-            
+
             <div class="form-group">
-                <button onclick="joinRoom()" disabled id="joinRoomBtn">Tham gia phòng</button>
-                <button onclick="leaveRoom()" disabled id="leaveRoomBtn">Rời phòng</button>
+                <div class="button-group">
+                    <button onclick="joinRoom()" disabled id="joinRoomBtn">🚪 Tham gia phòng</button>
+                    <button onclick="leaveRoom()" disabled id="leaveRoomBtn">🚪 Rời phòng</button>
+                </div>
             </div>
-              <div class="online-users">
-                <h4>Users Online:</h4>
+
+            <div class="online-users">
+                <h4>👥 Users Online:</h4>
                 <div id="onlineUsersList" class="user-list">
-                    Chưa có ai online
+                    <div style="text-align: center; color: #6c757d; font-style: italic;">
+                        Chưa có ai online
+                    </div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Panel chat -->
         <div class="chat-panel">
             <div class="chat-header">
-                <h3 id="chatTitle">Chat Room #1</h3>
+                <h3 id="chatTitle">💬 Chat Room #1</h3>
                 <div id="chatStatus">Chưa tham gia phòng chat</div>
             </div>
-            
+
             <div class="messages-container" id="messagesContainer">
-                <div class="message received">
-                    <div><strong>System:</strong> Chào mừng đến với demo chat!</div>
-                    <div class="message-info">Hướng dẫn: Kết nối server → Tham gia phòng → Bắt đầu chat</div>
-                </div>
             </div>
-            
+
             <div class="typing-indicator" id="typingIndicator">
-                <span id="typingText"></span>
+                <span id="typingText">💭 Đang gõ...</span>
             </div>
-            
+
             <div class="input-panel">
-                <input type="text" id="messageInput" placeholder="Nhập tin nhắn..." disabled>
-                <button onclick="sendMessage()" disabled id="sendBtn">Gửi</button>
+                <input type="text" id="messageInput" placeholder="💬 Nhập tin nhắn..." disabled>
+                <button onclick="sendMessage()" disabled id="sendBtn">📤 Gửi</button>
             </div>
         </div>
     </div>
 
     <script src="chat-client.js"></script>
 </body>
-</html>
-</body>
+
 </html>
